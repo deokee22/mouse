@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# 虚拟环境
+venv/
+.venv/
+env/
+
+# 环境变量 / 日志
+.env
+*.log
+
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
+
+# WorkBuddy 本地数据
+.workbuddy-ai/
+
+# 说明：models/*.joblib 为训练产物，已随仓库提交，clone 后可直接运行；
+# 如需重新训练，执行 python train_model.py 即可覆盖生成。
