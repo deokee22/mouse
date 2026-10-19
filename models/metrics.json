@@ -1,0 +1,65 @@
+{
+  "accuracy": 0.991,
+  "precision_macro": 0.9911,
+  "recall_macro": 0.991,
+  "f1_macro": 0.991,
+  "confusion_matrix": {
+    "labels": [
+      "normal",
+      "dos",
+      "port_scan",
+      "brute_force",
+      "exfiltration"
+    ],
+    "matrix": [
+      [
+        196,
+        1,
+        0,
+        3,
+        0
+      ],
+      [
+        2,
+        198,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        197,
+        1,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        200,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        200
+      ]
+    ]
+  },
+  "n_train": 3000,
+  "n_test": 1000,
+  "feature_importance": {
+    "duration": 0.041,
+    "protocol_type": 0.0016,
+    "src_bytes": 0.2793,
+    "dst_bytes": 0.089,
+    "packet_count": 0.1417,
+    "failed_logins": 0.1591,
+    "num_unique_ports": 0.1129,
+    "syn_rate": 0.1477,
+    "bytes_per_packet": 0.0278
+  }
+}
