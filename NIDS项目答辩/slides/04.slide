@@ -1,0 +1,46 @@
+<Slide style={{ background: '#FFFFFF', padding: 0, flexDirection: 'column' }}>
+  <Box style={{ width: '100%', height: 72, background: '#1E4FA8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 40, paddingRight: 40 }}>
+    <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#FFFFFF' }}>研究背景与问题定义</Text>
+    <Text style={{ fontSize: 14, color: '#BBD0EF' }}>01 · 研究背景与动机</Text>
+  </Box>
+  <Box style={{ flex: 1, flexDirection: 'row', padding: 36, gap: 32 }}>
+    <Box style={{ width: '58%', flexDirection: 'column', gap: 18 }}>
+      <Box style={{ background: '#F7F9FC', borderRadius: 8, padding: 22, borderLeft: '4px solid #1E4FA8' }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1E4FA8', marginBottom: 8 }}>威胁态势</Text>
+        <Text style={{ fontSize: 17, color: '#4A5568', lineHeight: 1.7 }}>
+          企业内网面临拒绝服务、端口扫描、暴力破解、数据外泄等多类攻击。攻击者手段日趋自动化，单点防护难以覆盖全部形态。
+        </Text>
+      </Box>
+      <Box style={{ background: '#F7F9FC', borderRadius: 8, padding: 22, borderLeft: '4px solid #3D7BD9' }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#3D7BD9', marginBottom: 8 }}>检测范式</Text>
+        <Text style={{ fontSize: 17, color: '#4A5568', lineHeight: 1.7 }}>
+          规则引擎对已知模式可解释、零延迟；机器学习擅长从数据中识别未知攻击。二者互补，而非互斥。
+        </Text>
+      </Box>
+      <Box style={{ background: '#E8EFF8', borderRadius: 8, padding: 22, borderLeft: '4px solid #0E3F8C' }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#0E3F8C', marginBottom: 8 }}>核心问题</Text>
+        <Text style={{ fontSize: 17, color: '#1A2230', lineHeight: 1.7 }}>
+          如何用一套系统同时兼顾<span style={{ fontWeight: 'bold' }}>"已知攻击可解释"</span>与<span style={{ fontWeight: 'bold' }}>"未知攻击可发现"</span>？这构成本项目双引擎融合的设计动机。
+        </Text>
+      </Box>
+    </Box>
+    <Box style={{ flex: 1, flexDirection: 'column' }}>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1A2230', marginBottom: 12 }}>四类典型攻击特征</Text>
+      <Table
+        style={{ width: '100%', height: 460 }}
+        defaultTextStyle={{ fontSize: 14, textAlign: 'left', color: '#1A2230' }}
+        defaultCellStyle={{ border: { left: { width: 1, color: '#D6DCE5' }, right: { width: 1, color: '#D6DCE5' }, top: { width: 1, color: '#D6DCE5' }, bottom: { width: 1, color: '#D6DCE5' } }, padding: 10 }}
+        cells={[
+          [{ text: '攻击类型', textStyle: { bold: true, color: '#fff' }, cellStyle: { background: { color: '#1E4FA8' } } }, { text: '核心特征', textStyle: { bold: true, color: '#fff' }, cellStyle: { background: { color: '#1E4FA8' } } }],
+          ['拒绝服务 (DoS)', '海量小包、SYN 占比极高、几乎无响应'],
+          [{ text: '端口扫描', cellStyle: { background: { color: '#F7F9FC' } } }, { text: '单源访问大量不同端口、连接极短', cellStyle: { background: { color: '#F7F9FC' } } }],
+          ['暴力破解', '单连接内失败登录次数异常高'],
+          [{ text: '数据外泄', cellStyle: { background: { color: '#F7F9FC' } } }, { text: '上行字节远大于下行、持续时间长', cellStyle: { background: { color: '#F7F9FC' } } }],
+        ]}
+      />
+    </Box>
+  </Box>
+  <Box style={{ width: '100%', height: 40, borderTop: '1px solid #D6DCE5', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 40 }}>
+    <Text style={{ fontSize: 14, color: '#8B97A8' }}>04 / 13</Text>
+  </Box>
+</Slide>

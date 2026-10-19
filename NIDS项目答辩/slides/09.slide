@@ -1,0 +1,19 @@
+<Slide style={{ background: '#F7F9FC', padding: 0, flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+  <Text style={{ fontSize: 20, color: '#3D7BD9', letterSpacing: 6, marginBottom: 8 }}>EXPERIMENTAL RESULTS</Text>
+  <Text style={{ fontSize: 120, fontWeight: 'bold', color: '#0E3F8C', lineHeight: 1 }}>99.10%</Text>
+  <Text style={{ fontSize: 22, color: '#4A5568', marginTop: 8, marginBottom: 36 }}>测试集综合准确率（Accuracy）</Text>
+  <Box style={{ flexDirection: 'row', gap: 28, marginBottom: 34 }}>
+    {[['Accuracy', '0.991'], ['Precision', '0.991'], ['Recall', '0.991'], ['F1-score', '0.991']].map((kpi, i) => (
+      <Box key={i} style={{ width: 180, background: '#FFFFFF', borderRadius: 10, padding: 20, borderBottom: '4px solid #1E4FA8', alignItems: 'center' }}>
+        <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#1E4FA8' }}>{kpi[1]}</Text>
+        <Text style={{ fontSize: 16, color: '#8B97A8', marginTop: 6 }}>{kpi[0]} (macro)</Text>
+      </Box>
+    ))}
+  </Box>
+  <Box style={{ background: '#E8EFF8', borderRadius: 8, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <Box style={{ width: 8, height: 8, background: '#1E4FA8', borderRadius: 4 }} />
+    <Text style={{ fontSize: 16, color: '#0E3F8C' }}>
+      1000 条测试样本；刻意注入 6% 类边界重叠样本，使指标真实可信而非"数据过干净"
+    </Text>
+  </Box>
+</Slide>

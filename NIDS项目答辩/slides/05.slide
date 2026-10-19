@@ -1,0 +1,23 @@
+<Slide style={{ background: '#F7F9FC', padding: 0, flexDirection: 'row' }}>
+  <Box style={{ width: 420, height: '100%', background: '#0E3F8C', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+    <Text style={{ fontSize: 220, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1 }}>02</Text>
+  </Box>
+  <Box style={{ flex: 1, height: '100%', flexDirection: 'column', justifyContent: 'center', paddingLeft: 72, paddingRight: 60 }}>
+    <Text style={{ fontSize: 20, color: '#3D7BD9', letterSpacing: 4, marginBottom: 14 }}>CHAPTER 02</Text>
+    <Text style={{ fontSize: 46, fontWeight: 'bold', color: '#1A2230', marginBottom: 36 }}>系统设计</Text>
+    <Box style={{ gap: 18 }}>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ width: 10, height: 10, background: '#1E4FA8', borderRadius: 2 }} />
+        <Text style={{ fontSize: 20, color: '#4A5568' }}>双引擎融合架构：规则引擎 + 机器学习引擎</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ width: 10, height: 10, background: '#1E4FA8', borderRadius: 2 }} />
+        <Text style={{ fontSize: 20, color: '#4A5568' }}>融合策略：规则优先、ML 兜底、异常分修正</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ width: 10, height: 10, background: '#1E4FA8', borderRadius: 2 }} />
+        <Text style={{ fontSize: 20, color: '#4A5568' }}>特征工程：9 维连接级特征与数据集</Text>
+      </Box>
+    </Box>
+  </Box>
+</Slide>

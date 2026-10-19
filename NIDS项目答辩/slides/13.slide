@@ -1,0 +1,21 @@
+<Slide style={{ background: '#0E3F8C', padding: 0, flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+  <Box style={{ width: '100%', height: 10, background: '#3D7BD9' }} />
+  <Box style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+    <Text style={{ fontSize: 64, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 20 }}>恳请各位老师批评指正</Text>
+    <Text style={{ fontSize: 22, color: '#BBD0EF', marginBottom: 48 }}>
+      基于双引擎融合的网络入侵检测系统 · 考研复试答辩
+    </Text>
+    <Box style={{ flexDirection: 'row', gap: 14 }}>
+      <Box style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 4, paddingLeft: 18, paddingRight: 18, paddingTop: 8, paddingBottom: 8 }}>
+        <Text style={{ fontSize: 15, color: '#FFFFFF' }}>感谢聆听</Text>
+      </Box>
+      <Box style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 4, paddingLeft: 18, paddingRight: 18, paddingTop: 8, paddingBottom: 8 }}>
+        <Text style={{ fontSize: 15, color: '#FFFFFF' }}>敬请提问</Text>
+      </Box>
+    </Box>
+  </Box>
+  <Box style={{ width: '100%', height: 60, borderTop: '1px solid rgba(255,255,255,0.2)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 80, paddingRight: 80 }}>
+    <Text style={{ fontSize: 15, color: '#9CC0F0' }}>汇报人：XXX</Text>
+    <Text style={{ fontSize: 15, color: '#9CC0F0' }}>2026 年 3 月</Text>
+  </Box>
+</Slide>

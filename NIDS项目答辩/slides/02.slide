@@ -1,0 +1,27 @@
+<Slide style={{ background: '#FFFFFF', padding: 0, flexDirection: 'row' }}>
+  <Box style={{ width: 380, height: '100%', background: '#0E3F8C', flexDirection: 'column', justifyContent: 'center', paddingLeft: 48, paddingRight: 40 }}>
+    <Text style={{ fontSize: 22, color: '#9CC0F0', letterSpacing: 6 }}>CONTENTS</Text>
+    <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#FFFFFF', marginTop: 8, marginBottom: 20 }}>目录</Text>
+    <Box style={{ width: 60, height: 4, background: '#3D7BD9', borderRadius: 2 }} />
+    <Text style={{ fontSize: 15, color: '#BBD0EF', lineHeight: 1.8, marginTop: 24 }}>
+      基于双引擎融合的<br />网络入侵检测系统
+    </Text>
+  </Box>
+  <Box style={{ flex: 1, height: '100%', flexDirection: 'column', justifyContent: 'center', paddingLeft: 64, paddingRight: 64, gap: 22 }}>
+    {[
+      ['01', '研究背景与动机', '网络空间威胁态势与入侵检测的核心价值'],
+      ['02', '系统设计', '双引擎融合架构、融合策略与特征工程'],
+      ['03', '实验与评估', '数据集、评估指标与混淆矩阵误差分析'],
+      ['04', '总结与展望', '主要结论、当前不足与改进方向'],
+    ].map((item, idx) => (
+      <Box key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 24 }}>
+        <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#1E4FA8', width: 70 }}>{item[0]}</Text>
+        <Box style={{ width: 1, height: 50, background: '#D6DCE5' }} />
+        <Box style={{ flex: 1 }}>
+          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1A2230' }}>{item[1]}</Text>
+          <Text style={{ fontSize: 15, color: '#8B97A8', marginTop: 4 }}>{item[2]}</Text>
+        </Box>
+      </Box>
+    ))}
+  </Box>
+</Slide>

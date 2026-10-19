@@ -1,0 +1,39 @@
+<Slide style={{ background: '#FFFFFF', padding: 0 }}>
+  <Box style={{ width: '100%', height: '100%', position: 'relative', flexDirection: 'column' }}>
+    <Box style={{ width: '100%', height: 10, background: '#1E4FA8' }} />
+    <Box style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', paddingLeft: 100, paddingRight: 100 }}>
+      <Text style={{ fontSize: 18, color: '#3D7BD9', letterSpacing: 4, marginBottom: 22 }}>
+        考研复试 · 项目答辩
+      </Text>
+      <Text style={{ fontSize: 50, fontWeight: 'bold', color: '#1A2230', lineHeight: 1.3, marginBottom: 18 }}>
+        基于双引擎融合的<br />网络入侵检测系统
+      </Text>
+      <Text style={{ fontSize: 16, color: '#8B97A8', fontFamily: 'Times New Roman', fontStyle: 'italic', marginBottom: 40 }}>
+        A Network Intrusion Detection System Based on Dual-Engine Fusion
+      </Text>
+      <Box style={{ width: 760, height: 1, background: '#D6DCE5', marginBottom: 26 }} />
+      <Box style={{ flexDirection: 'row', gap: 12, marginBottom: 28 }}>
+        <Box style={{ background: '#E8EFF8', borderRadius: 4, paddingLeft: 14, paddingRight: 14, paddingTop: 7, paddingBottom: 7 }}>
+          <Text style={{ fontSize: 15, color: '#1E4FA8', fontWeight: 'bold' }}>规则引擎 · 可解释</Text>
+        </Box>
+        <Box style={{ background: '#E8EFF8', borderRadius: 4, paddingLeft: 14, paddingRight: 14, paddingTop: 7, paddingBottom: 7 }}>
+          <Text style={{ fontSize: 15, color: '#1E4FA8', fontWeight: 'bold' }}>机器学习 · 发现未知攻击</Text>
+        </Box>
+        <Box style={{ background: '#E8EFF8', borderRadius: 4, paddingLeft: 14, paddingRight: 14, paddingTop: 7, paddingBottom: 7 }}>
+          <Text style={{ fontSize: 15, color: '#1E4FA8', fontWeight: 'bold' }}>实时可视化监控</Text>
+        </Box>
+      </Box>
+      <Text style={{ fontSize: 16, color: '#4A5568', lineHeight: 1.7, width: 800 }}>
+        面向企业内网边界防护场景，融合白盒规则与机器学习双引擎，对拒绝服务、端口扫描、暴力破解与数据外泄四类典型攻击进行实时检测与可视化告警。
+      </Text>
+    </Box>
+    <Box style={{ width: '100%', height: 84, background: '#F7F9FC', borderTop: '1px solid #D6DCE5', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 100, paddingRight: 100 }}>
+      <Text style={{ fontSize: 16, color: '#4A5568' }}>
+        汇报人：XXX　　专业方向：网络空间安全
+      </Text>
+      <Text style={{ fontSize: 16, color: '#4A5568' }}>
+        2026 年 3 月
+      </Text>
+    </Box>
+  </Box>
+</Slide>

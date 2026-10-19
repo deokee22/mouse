@@ -1,0 +1,23 @@
+<Slide style={{ background: '#F7F9FC', padding: 0, flexDirection: 'row' }}>
+  <Box style={{ width: 420, height: '100%', background: '#0E3F8C', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+    <Text style={{ fontSize: 220, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1 }}>03</Text>
+  </Box>
+  <Box style={{ flex: 1, height: '100%', flexDirection: 'column', justifyContent: 'center', paddingLeft: 72, paddingRight: 60 }}>
+    <Text style={{ fontSize: 20, color: '#3D7BD9', letterSpacing: 4, marginBottom: 14 }}>CHAPTER 03</Text>
+    <Text style={{ fontSize: 46, fontWeight: 'bold', color: '#1A2230', marginBottom: 36 }}>实验与评估</Text>
+    <Box style={{ gap: 18 }}>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ width: 10, height: 10, background: '#1E4FA8', borderRadius: 2 }} />
+        <Text style={{ fontSize: 20, color: '#4A5568' }}>数据集：合成流量生成与边界样本</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ width: 10, height: 10, background: '#1E4FA8', borderRadius: 2 }} />
+        <Text style={{ fontSize: 20, color: '#4A5568' }}>评估指标：准确率 / 精确率 / 召回率 / F1</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ width: 10, height: 10, background: '#1E4FA8', borderRadius: 2 }} />
+        <Text style={{ fontSize: 20, color: '#4A5568' }}>误差分析：混淆矩阵与误判来源</Text>
+      </Box>
+    </Box>
+  </Box>
+</Slide>

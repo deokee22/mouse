@@ -1,0 +1,23 @@
+<Slide style={{ background: '#F7F9FC', padding: 0, flexDirection: 'row' }}>
+  <Box style={{ width: 420, height: '100%', background: '#0E3F8C', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+    <Text style={{ fontSize: 220, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1 }}>04</Text>
+  </Box>
+  <Box style={{ flex: 1, height: '100%', flexDirection: 'column', justifyContent: 'center', paddingLeft: 72, paddingRight: 60 }}>
+    <Text style={{ fontSize: 20, color: '#3D7BD9', letterSpacing: 4, marginBottom: 14 }}>CHAPTER 04</Text>
+    <Text style={{ fontSize: 46, fontWeight: 'bold', color: '#1A2230', marginBottom: 36 }}>总结与展望</Text>
+    <Box style={{ gap: 18 }}>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ width: 10, height: 10, background: '#1E4FA8', borderRadius: 2 }} />
+        <Text style={{ fontSize: 20, color: '#4A5568' }}>主要结论：双引擎融合兼顾可解释性与覆盖率</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ width: 10, height: 10, background: '#1E4FA8', borderRadius: 2 }} />
+        <Text style={{ fontSize: 20, color: '#4A5568' }}>当前不足：合成数据与真实分布、加密流量</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ width: 10, height: 10, background: '#1E4FA8', borderRadius: 2 }} />
+        <Text style={{ fontSize: 20, color: '#4A5568' }}>改进方向：真实数据集、时序模型、PCAP 实时解析</Text>
+      </Box>
+    </Box>
+  </Box>
+</Slide>

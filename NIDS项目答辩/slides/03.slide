@@ -1,0 +1,23 @@
+<Slide style={{ background: '#F7F9FC', padding: 0, flexDirection: 'row' }}>
+  <Box style={{ width: 420, height: '100%', background: '#0E3F8C', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+    <Text style={{ fontSize: 220, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1 }}>01</Text>
+  </Box>
+  <Box style={{ flex: 1, height: '100%', flexDirection: 'column', justifyContent: 'center', paddingLeft: 72, paddingRight: 60 }}>
+    <Text style={{ fontSize: 20, color: '#3D7BD9', letterSpacing: 4, marginBottom: 14 }}>CHAPTER 01</Text>
+    <Text style={{ fontSize: 46, fontWeight: 'bold', color: '#1A2230', marginBottom: 36 }}>研究背景与动机</Text>
+    <Box style={{ gap: 18 }}>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ width: 10, height: 10, background: '#1E4FA8', borderRadius: 2 }} />
+        <Text style={{ fontSize: 20, color: '#4A5568' }}>网络空间威胁态势：攻击形态日益复杂化、自动化</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ width: 10, height: 10, background: '#1E4FA8', borderRadius: 2 }} />
+        <Text style={{ fontSize: 20, color: '#4A5568' }}>入侵检测范式：规则与机器学习的互补关系</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Box style={{ width: 10, height: 10, background: '#1E4FA8', borderRadius: 2 }} />
+        <Text style={{ fontSize: 20, color: '#4A5568' }}>问题定义：为何需要双引擎融合</Text>
+      </Box>
+    </Box>
+  </Box>
+</Slide>
