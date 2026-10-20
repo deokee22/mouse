@@ -1,0 +1,38 @@
+{
+  "duration": {
+    "mean": 7.3932,
+    "std": 8.2277
+  },
+  "protocol_type": {
+    "mean": 0.5449,
+    "std": 0.7694
+  },
+  "src_bytes": {
+    "mean": 9497.2704,
+    "std": 55917.7276
+  },
+  "dst_bytes": {
+    "mean": 5906.2055,
+    "std": 10429.3538
+  },
+  "packet_count": {
+    "mean": 192.5963,
+    "std": 606.2641
+  },
+  "failed_logins": {
+    "mean": 2.2098,
+    "std": 13.7787
+  },
+  "num_unique_ports": {
+    "mean": 3.4023,
+    "std": 8.8687
+  },
+  "syn_rate": {
+    "mean": 0.1978,
+    "std": 0.1891
+  },
+  "bytes_per_packet": {
+    "mean": 146.9793,
+    "std": 353.7088
+  }
+}

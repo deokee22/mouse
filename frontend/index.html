@@ -3,80 +3,181 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NIDS · 网络入侵检测系统</title>
+<title>NIDS 安全运营控制台</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-  :root {
-    --bg: #0d1117; --panel: #161b22; --border: #2d333b;
-    --text: #e6edf3; --muted: #8b949e;
-    --critical: #f85149; --high: #f0883e; --medium: #d29922;
-    --info: #3fb950; --accent: #58a6ff;
+  :root{
+    --bg:#0b0f14; --panel:#141a21; --panel2:#1a222b; --border:#25303b;
+    --text:#e6edf3; --muted:#8b98a5; --accent:#4c8dff;
+    --critical:#f85149; --high:#f0883e; --medium:#d29922; --info:#3fb950; --purple:#a371f7;
   }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: var(--bg); color: var(--text); font-family: "Segoe UI", "Microsoft YaHei", sans-serif; font-size: 14px; }
-  header { padding: 16px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 14px; }
-  header h1 { font-size: 18px; font-weight: 600; }
-  header .sub { color: var(--muted); font-size: 12px; }
-  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 20px 28px; }
-  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-  .stat .num { font-size: 30px; font-weight: 600; margin-top: 4px; }
-  .stat .label { color: var(--muted); font-size: 12px; }
-  .charts { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; padding: 0 28px 20px; }
-  .card h3 { font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 10px; }
-  .table-wrap { padding: 0 28px 28px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
-  th { color: var(--muted); font-weight: 500; }
-  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; }
-  .badge.critical { background: rgba(248,81,73,.15); color: var(--critical); }
-  .badge.high { background: rgba(240,136,62,.15); color: var(--high); }
-  .badge.medium { background: rgba(210,153,34,.15); color: var(--medium); }
-  .badge.info { background: rgba(63,185,80,.15); color: var(--info); }
-  .engine { color: var(--muted); font-size: 12px; }
-  .toolbar { display: flex; gap: 10px; align-items: center; padding: 0 28px 14px; }
-  button { background: var(--accent); color: #0d1117; border: none; padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
-  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
-  #liveDot { width: 9px; height: 9px; border-radius: 50%; background: var(--info); display: inline-block; margin-right: 6px; }
-  .muted { color: var(--muted); font-size: 12px; }
-  .conf-bar { height: 5px; border-radius: 3px; background: var(--border); width: 80px; }
-  .conf-fill { height: 100%; border-radius: 3px; background: var(--accent); }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft YaHei",sans-serif;font-size:13px}
+  header{display:flex;align-items:center;gap:20px;padding:12px 22px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:10}
+  header h1{font-size:16px;font-weight:600;letter-spacing:.3px}
+  header .sub{color:var(--muted);font-size:11px;margin-top:2px}
+  .brand{display:flex;flex-direction:column}
+  .tabs{display:flex;gap:6px;margin-left:auto}
+  .tab{background:transparent;border:1px solid var(--border);color:var(--muted);padding:6px 16px;border-radius:8px;cursor:pointer;font-size:13px}
+  .tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .status{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--info);display:inline-block}
+  .dot.off{background:var(--muted)}
+  main{padding:16px 22px;max-width:1400px;margin:0 auto}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px}
+  .stat .label{color:var(--muted);font-size:11px}
+  .stat .num{font-size:26px;font-weight:600;margin-top:4px}
+  .num.crit{color:var(--critical)}
+  .control{margin-bottom:12px}
+  .ctrl-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 0}
+  .ctrl-row+.ctrl-row{border-top:1px dashed var(--border)}
+  .ctrl-label{color:var(--muted);font-size:12px;min-width:56px}
+  .scenario-btns{display:flex;gap:8px;flex-wrap:wrap}
+  .scenario-btns button{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:8px;cursor:pointer;font-size:12px}
+  .scenario-btns button:hover{border-color:var(--accent)}
+  .scenario-btns button.active{background:rgba(76,141,255,.16);border-color:var(--accent);color:#9cc3ff}
+  select,input[type=range]{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12px}
+  input[type=range]{padding:0;width:180px;accent-color:var(--accent)}
+  .actions button{background:transparent;border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:8px;cursor:pointer;font-size:12px}
+  .actions button:hover{border-color:var(--accent)}
+  .actions button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .charts{display:grid;grid-template-columns:1.5fr 1fr;gap:12px;margin-bottom:12px}
+  .charts.two{grid-template-columns:1fr 1fr}
+  .chart-box{height:200px;position:relative}
+  .chart-box.tall{height:300px}
+  .card h3{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:10px}
+  .table-card{padding:0}
+  .table-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
+  .table-head h3{margin:0}
+  .filters{display:flex;align-items:center;gap:10px}
+  .table-scroll{max-height:360px;overflow:auto}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px;white-space:nowrap}
+  th{color:var(--muted);font-weight:500;position:sticky;top:0;background:var(--panel);z-index:1}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:var(--panel2)}
+  .badge{display:inline-block;padding:1px 9px;border-radius:999px;font-size:11px}
+  .badge.critical{background:rgba(248,81,73,.16);color:var(--critical)}
+  .badge.high{background:rgba(240,136,62,.16);color:var(--high)}
+  .badge.medium{background:rgba(210,153,34,.16);color:var(--medium)}
+  .badge.info{background:rgba(63,185,80,.16);color:var(--info)}
+  .conf-bar{height:5px;width:64px;background:var(--border);border-radius:3px;display:inline-block;vertical-align:middle;margin-right:6px}
+  .conf-fill{height:100%;border-radius:3px;background:var(--accent)}
+  .engine{color:var(--muted);font-size:11px}
+  .muted{color:var(--muted);font-size:11px}
+  .explain-panel{position:fixed;top:0;right:0;width:420px;max-width:92vw;height:100%;background:var(--panel);border-left:1px solid var(--border);transform:translateX(100%);transition:transform .25s;z-index:30;display:flex;flex-direction:column}
+  .explain-panel.open{transform:translateX(0)}
+  .explain-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);font-weight:600}
+  .explain-body{padding:16px;overflow:auto;flex:1}
+  .explain-body .kv{display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px}
+  .explain-body .kv span:first-child{color:var(--muted)}
+  .contrib{margin-top:14px}
+  .contrib-row{display:grid;grid-template-columns:110px 1fr 56px;align-items:center;gap:8px;margin-bottom:7px;font-size:11px}
+  .contrib-track{height:8px;background:var(--panel2);border-radius:4px;position:relative;overflow:hidden}
+  .contrib-pos{position:absolute;left:50%;height:100%;background:var(--critical);border-radius:2px}
+  .contrib-neg{position:absolute;right:50%;height:100%;background:var(--info);border-radius:2px}
+  .rule-tag{display:inline-block;background:rgba(163,113,247,.16);color:var(--purple);padding:2px 9px;border-radius:999px;font-size:11px;margin:2px 4px 2px 0}
+  .cm-wrap{overflow:auto}
+  .cm{display:grid;gap:3px;font-size:11px}
+  .cm-cell{padding:9px 6px;text-align:center;border-radius:4px}
+  .cm-head{color:var(--muted);font-size:10px;padding:4px}
+  .cm-rowlabel{color:var(--muted);font-size:10px;padding:4px 8px;text-align:right;white-space:nowrap}
+  #closeExplain{background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1}
 </style>
 </head>
 <body>
 <header>
-  <h1>网络入侵检测系统</h1>
-  <span class="sub">双引擎架构 · 规则引擎 + Isolation Forest / Random Forest · 实时流量监控</span>
+  <div class="brand">
+    <h1>NIDS 安全运营控制台</h1>
+    <span class="sub">双引擎 · 规则 + RandomForest / IsolationForest · 可解释检测</span>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="monitor">监控台</button>
+    <button class="tab" data-tab="analysis">模型分析</button>
+  </nav>
+  <div class="status"><span id="runDot" class="dot"></span><span id="runText">运行中</span></div>
 </header>
 
-<div class="grid">
-  <div class="card stat"><div class="label">已检测连接</div><div class="num" id="statTotal">0</div></div>
-  <div class="card stat"><div class="label">攻击警告</div><div class="num" id="statAttack" style="color:var(--critical)">0</div></div>
-  <div class="card stat"><div class="label">检测准确率（测试集）</div><div class="num" id="statAcc">—</div></div>
-  <div class="card stat"><div class="label">当前检测速率</div><div class="num" id="statRate">0<small style="font-size:13px;color:var(--muted)"> 条/批</small></div></div>
-</div>
+<main id="tab-monitor" class="tab-panel active">
+  <section class="stats">
+    <div class="card stat"><div class="label">已检测连接</div><div class="num" id="statTotal">0</div></div>
+    <div class="card stat"><div class="label">攻击警告</div><div class="num crit" id="statAttack">0</div></div>
+    <div class="card stat"><div class="label">检测准确率（测试集）</div><div class="num" id="statAcc">—</div></div>
+    <div class="card stat"><div class="label">当前灵敏度</div><div class="num" id="statSens">50%</div></div>
+  </section>
 
-<div class="toolbar">
-  <button id="btnSimulate">注入一批流量（20 条）</button>
-  <button class="ghost" id="btnLive"><span id="liveDot"></span>持续监控：开</button>
-  <span class="muted" id="lastInfo"></span>
-</div>
+  <section class="card control">
+    <div class="ctrl-row">
+      <span class="ctrl-label">攻击场景</span>
+      <div class="scenario-btns" id="scenarioBtns"></div>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">强度</span>
+      <select id="intensity">
+        <option value="low">低</option>
+        <option value="medium" selected>中</option>
+        <option value="high">高</option>
+      </select>
+      <span class="ctrl-label" style="margin-left:20px">灵敏度</span>
+      <input type="range" id="sensRange" min="0" max="100" value="50">
+      <span id="sensVal" class="muted">50%</span>
+    </div>
+    <div class="ctrl-row actions">
+      <button id="btnLive" class="primary"><span id="liveDot" class="dot"></span>暂停监控</button>
+      <button id="btnStep">单步注入</button>
+      <button id="btnReset">重置</button>
+      <button id="btnExport">导出 CSV</button>
+      <span class="muted" id="lastInfo"></span>
+    </div>
+  </section>
 
-<div class="charts">
-  <div class="card"><h3>实时流量检测趋势（每批攻击占比）</h3><div style="height:220px;position:relative"><canvas id="trendChart"></canvas></div></div>
-  <div class="card"><h3>攻击类型分布</h3><div style="height:220px;position:relative"><canvas id="pieChart"></canvas></div></div>
-</div>
+  <section class="charts">
+    <div class="card"><h3>检测趋势（每批攻击 / 正常）</h3><div class="chart-box"><canvas id="trendChart"></canvas></div></div>
+    <div class="card"><h3>攻击类型分布</h3><div class="chart-box"><canvas id="pieChart"></canvas></div></div>
+    <div class="card"><h3>协议分布</h3><div class="chart-box"><canvas id="protoChart"></canvas></div></div>
+    <div class="card"><h3>Top 攻击源 IP</h3><div class="chart-box"><canvas id="srcChart"></canvas></div></div>
+  </section>
 
-<div class="table-wrap">
-  <div class="card">
-    <h3>实时警告与检测日志</h3>
-    <table>
-      <thead><tr>
-        <th>时间</th><th>源 IP</th><th>目的 IP:端口</th><th>判定</th><th>严重级别</th>
-        <th>置信度</th><th>检测引擎</th><th>命中规则 / 异常分</th>
-      </tr></thead>
-      <tbody id="logBody"></tbody>
-    </table>
-  </div>
+  <section class="card table-card">
+    <div class="table-head">
+      <h3>警告与检测日志</h3>
+      <div class="filters">
+        <select id="sevFilter">
+          <option value="all">全部</option>
+          <option value="attack">仅攻击</option>
+          <option value="critical">严重</option>
+          <option value="high">高</option>
+          <option value="medium">中</option>
+        </select>
+        <span class="muted">点击任意行查看可解释依据</span>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>时间</th><th>源 IP</th><th>目的 IP:端口</th><th>判定</th><th>级别</th><th>置信度</th><th>引擎</th><th>依据</th></tr></thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<main id="tab-analysis" class="tab-panel">
+  <section class="charts two">
+    <div class="card"><h3>多模型对比（测试集指标）</h3><div class="chart-box tall"><canvas id="compareChart"></canvas></div></div>
+    <div class="card"><h3>特征重要性（RandomForest）</h3><div class="chart-box tall"><canvas id="importanceChart"></canvas></div></div>
+  </section>
+  <section class="card">
+    <h3>混淆矩阵（RandomForest 主模型）</h3>
+    <div id="cmWrap" class="cm-wrap"></div>
+  </section>
+</main>
+
+<div id="explainPanel" class="explain-panel">
+  <div class="explain-head"><span>告警可解释依据</span><button id="closeExplain">×</button></div>
+  <div id="explainBody" class="explain-body"></div>
 </div>
 
 <script src="dashboard.js"></script>

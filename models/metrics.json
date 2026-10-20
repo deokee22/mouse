@@ -49,6 +49,26 @@
       ]
     ]
   },
+  "model_comparison": {
+    "RandomForest": {
+      "accuracy": 0.991,
+      "precision_macro": 0.9911,
+      "recall_macro": 0.991,
+      "f1_macro": 0.991
+    },
+    "SVM": {
+      "accuracy": 0.981,
+      "precision_macro": 0.9811,
+      "recall_macro": 0.981,
+      "f1_macro": 0.981
+    },
+    "DecisionTree": {
+      "accuracy": 0.992,
+      "precision_macro": 0.992,
+      "recall_macro": 0.992,
+      "f1_macro": 0.992
+    }
+  },
   "n_train": 3000,
   "n_test": 1000,
   "feature_importance": {
