@@ -1,0 +1,145 @@
+{
+  "dataset": "realistic",
+  "n_total": 5000,
+  "n_train": 3750,
+  "n_test": 1250,
+  "meta": {
+    "n_total": 5000,
+    "ratio": {
+      "normal": 0.7,
+      "dos": 0.12,
+      "port_scan": 0.08,
+      "brute_force": 0.06,
+      "exfiltration": 0.04
+    },
+    "counts": {
+      "normal": 3500,
+      "dos": 600,
+      "port_scan": 400,
+      "brute_force": 300,
+      "exfiltration": 200
+    },
+    "hard_ratio": 0.12,
+    "label_noise": 0.02,
+    "seed": 7,
+    "features": [
+      "duration",
+      "protocol_type",
+      "src_bytes",
+      "dst_bytes",
+      "packet_count",
+      "failed_logins",
+      "num_unique_ports",
+      "syn_rate",
+      "bytes_per_packet"
+    ],
+    "labels": [
+      "normal",
+      "dos",
+      "port_scan",
+      "brute_force",
+      "exfiltration"
+    ]
+  },
+  "model_comparison": {
+    "RandomForest": {
+      "accuracy": 0.9688,
+      "precision_macro": 0.9573,
+      "recall_macro": 0.9253,
+      "f1_macro": 0.9406,
+      "f1_weighted": 0.9685,
+      "per_class_recall": {
+        "normal": 0.993,
+        "dos": 0.915,
+        "port_scan": 0.9505,
+        "brute_force": 0.9136,
+        "exfiltration": 0.8545
+      }
+    },
+    "SVM": {
+      "accuracy": 0.9576,
+      "precision_macro": 0.9411,
+      "recall_macro": 0.8969,
+      "f1_macro": 0.9175,
+      "f1_weighted": 0.9568,
+      "per_class_recall": {
+        "normal": 0.9907,
+        "dos": 0.902,
+        "port_scan": 0.9406,
+        "brute_force": 0.8148,
+        "exfiltration": 0.8364
+      }
+    },
+    "DecisionTree": {
+      "accuracy": 0.9488,
+      "precision_macro": 0.9178,
+      "recall_macro": 0.8948,
+      "f1_macro": 0.906,
+      "f1_weighted": 0.9484,
+      "per_class_recall": {
+        "normal": 0.9802,
+        "dos": 0.8824,
+        "port_scan": 0.9109,
+        "brute_force": 0.8642,
+        "exfiltration": 0.8364
+      }
+    }
+  },
+  "confusion_matrix": {
+    "labels": [
+      "normal",
+      "dos",
+      "port_scan",
+      "brute_force",
+      "exfiltration"
+    ],
+    "matrix": [
+      [
+        854,
+        2,
+        1,
+        0,
+        3
+      ],
+      [
+        7,
+        140,
+        6,
+        0,
+        0
+      ],
+      [
+        1,
+        2,
+        96,
+        1,
+        1
+      ],
+      [
+        7,
+        0,
+        0,
+        74,
+        0
+      ],
+      [
+        8,
+        0,
+        0,
+        0,
+        47
+      ]
+    ]
+  },
+  "feature_importance": {
+    "duration": 0.076,
+    "protocol_type": 0.0042,
+    "src_bytes": 0.1791,
+    "dst_bytes": 0.236,
+    "packet_count": 0.1391,
+    "failed_logins": 0.082,
+    "num_unique_ports": 0.0533,
+    "syn_rate": 0.18,
+    "bytes_per_packet": 0.0504
+  }
+}

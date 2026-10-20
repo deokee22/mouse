@@ -76,6 +76,14 @@ function initCharts() {
       plugins: { legend: { display: false } },
       scales: { x: { beginAtZero: true, ticks, grid }, y: { ticks, grid: { display: false } } } },
   });
+
+  charts.dataset = new Chart(document.getElementById("datasetChart"), {
+    type: "bar",
+    data: { labels: [], datasets: [] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { labels: { boxWidth: 10 } } },
+      scales: { x: { ticks, grid: { display: false } }, y: { beginAtZero: true, max: 1, ticks, grid } } },
+  });
 }
 
 function renderScenarioBtns() {
@@ -380,6 +388,23 @@ function renderCM(cm) {
   wrap.innerHTML = html;
 }
 
+function renderDatasetCompare(dc) {
+  const b = dc.balanced || {};
+  const r = dc.realistic || {};
+  const bm = (b.model_comparison || {}).RandomForest || {};
+  const rm = (r.model_comparison || {}).RandomForest || {};
+  charts.dataset.data.labels = ["平衡合成数据", "真实分布数据"];
+  charts.dataset.data.datasets = [
+    { label: "准确率", data: [bm.accuracy || 0, rm.accuracy || 0], backgroundColor: "#4c8dff", borderRadius: 4 },
+    { label: "Macro-F1", data: [bm.f1_macro || 0, rm.f1_macro || 0], backgroundColor: "#f0883e", borderRadius: 4 },
+  ];
+  charts.dataset.update("none");
+  const meta = r.meta || {};
+  const ratio = meta.ratio || {};
+  document.getElementById("datasetNote").textContent =
+    `真实分布数据：正常 ${Math.round((ratio.normal || 0) * 100)}% · 困难样本 ${Math.round((meta.hard_ratio || 0) * 100)}% · 标签噪声 ${Math.round((meta.label_noise || 0) * 100)}% · 共 ${r.n_total || 0} 条。指标下降是"更真实"的代价。`;
+}
+
 async function loadAnalysis() {
   try {
     const res = await fetch("/api/model_compare");
@@ -404,6 +429,9 @@ async function loadAnalysis() {
     charts.importance.update("none");
 
     renderCM(d.confusion_matrix || {});
+
+    const dc = await (await fetch("/api/dataset_compare")).json();
+    renderDatasetCompare(dc);
   } catch (err) {
     document.getElementById("cmWrap").innerHTML = '<div class="muted">模型对比数据加载失败：' + err.message + "</div>";
   }

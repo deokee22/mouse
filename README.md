@@ -154,5 +154,15 @@ nids-project/
 
 对应接口：`/api/alerts`（分页/筛选查询）、`/api/alerts/stats`、`/api/alerts/clear`。
 
+## 🆕 v5 增强：真实分布数据集对比实验
+
+- 新增 `backend/realistic_dataset.py`：按 NSL-KDD / CICIDS2017 范式自建"贴近真实分布"数据集（正常 70%、攻击 30% 且内部不均、12% 困难样本、2% 标签噪声）。
+- 新增 `train_realistic.py`：在真实分布数据上训练对比，产出 `models/metrics_realistic.json`。
+- 对比结果：平衡数据 RF **0.991** → 真实分布 RF **0.9688**（macro-F1 0.9406），少数类外泄召回 0.85——更接近真实场景。
+- 前端「模型分析」页新增数据集对比图。
+- 详见 `数据集说明.md`（构造方法、参数、答辩话术）。
+
+对应接口：`/api/dataset_compare`。
+
 ## 📄 License
 MIT © 许智雄

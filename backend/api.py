@@ -185,6 +185,30 @@ def api_model_compare():
     })
 
 
+@app.route("/api/dataset_compare")
+def api_dataset_compare():
+    balanced_path = os.path.join(MODEL_DIR, "metrics.json")
+    realistic_path = os.path.join(MODEL_DIR, "metrics_realistic.json")
+    result = {"balanced": None, "realistic": None}
+    if os.path.exists(balanced_path):
+        with open(balanced_path, "r", encoding="utf-8") as fp:
+            m = json.load(fp)
+        result["balanced"] = {
+            "model_comparison": m.get("model_comparison", {}),
+            "n_total": int(m.get("n_train", 0)) + int(m.get("n_test", 0)),
+        }
+    if os.path.exists(realistic_path):
+        with open(realistic_path, "r", encoding="utf-8") as fp:
+            m = json.load(fp)
+        result["realistic"] = {
+            "model_comparison": m.get("model_comparison", {}),
+            "n_total": m.get("n_total", 0),
+            "meta": m.get("meta", {}),
+            "confusion_matrix": m.get("confusion_matrix", {}),
+        }
+    return jsonify(result)
+
+
 @app.route("/api/feature_importance")
 def api_feature_importance():
     return jsonify({"feature_importance": fusion.ml.feature_importance})
