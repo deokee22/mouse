@@ -146,5 +146,13 @@ nids-project/
 
 对应接口：`/api/pcap`（multipart 上传）、`/api/report`（生成 HTML 报告）。
 
+## 🆕 v4 增强：告警持久化与历史查询
+
+- **SQLite 告警库**：所有检测出的攻击告警自动落库（`data/alerts.db`），含时间、源/目的、判定、级别、置信度、引擎、依据。
+- **历史查询页**：新增"告警历史"标签页，支持按严重级别筛选、分页浏览、一键清空、导出 CSV。
+- **统计**：历史告警总数、按级别分布、按攻击类型分布、Top 源 IP。
+
+对应接口：`/api/alerts`（分页/筛选查询）、`/api/alerts/stats`、`/api/alerts/clear`。
+
 ## 📄 License
 MIT © 许智雄

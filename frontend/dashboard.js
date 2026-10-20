@@ -409,6 +409,72 @@ async function loadAnalysis() {
   }
 }
 
+const histState = { offset: 0, limit: 20, severity: "" };
+
+async function loadHistory() {
+  const sev = histState.severity;
+  const url = `/api/alerts?limit=${histState.limit}&offset=${histState.offset}` + (sev ? `&severity=${sev}` : "");
+  try {
+    const [res, sres] = await Promise.all([fetch(url), fetch("/api/alerts/stats")]);
+    const data = await res.json();
+    const st = await sres.json();
+    document.getElementById("histTotal").textContent = st.total || 0;
+    document.getElementById("histCritical").textContent = (st.by_severity || {}).critical || 0;
+    document.getElementById("histHigh").textContent = (st.by_severity || {}).high || 0;
+    document.getElementById("histMedium").textContent = (st.by_severity || {}).medium || 0;
+    renderHistory(data.items || []);
+    const page = Math.floor(histState.offset / histState.limit) + 1;
+    const pages = Math.max(1, Math.ceil(data.total / histState.limit));
+    document.getElementById("histPageInfo").textContent = `第 ${page} / ${pages} 页 · 共 ${data.total} 条`;
+  } catch (err) {
+    document.getElementById("histBody").innerHTML = `<tr><td colspan="9" class="muted">加载失败：${err.message}</td></tr>`;
+  }
+}
+
+function renderHistory(items) {
+  const body = document.getElementById("histBody");
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="9" class="muted">暂无告警（先注入流量或上传 PCAP 产生告警）</td></tr>';
+    return;
+  }
+  body.innerHTML = items.map((a, i) => `<tr>
+    <td class="muted">${histState.offset + i + 1}</td>
+    <td>${a.ts || ""}</td>
+    <td>${a.src || ""}</td>
+    <td>${a.dst || ""}:${a.dst_port || ""}</td>
+    <td>${a.label_zh || a.label || ""}</td>
+    <td><span class="badge ${a.severity || "info"}">${(a.severity || "").toUpperCase()}</span></td>
+    <td>${Math.round((a.confidence || 0) * 100)}%</td>
+    <td class="engine">${a.engine === "rule" ? "规则引擎" : "机器学习"}</td>
+    <td class="engine">${a.basis || ""}</td>
+  </tr>`).join("");
+}
+
+async function clearHistory() {
+  if (!confirm("确定清空全部告警历史？")) return;
+  await fetch("/api/alerts/clear", { method: "POST" });
+  histState.offset = 0;
+  loadHistory();
+}
+
+async function exportHistory() {
+  const res = await fetch("/api/alerts?limit=500&offset=0");
+  const data = await res.json();
+  const head = ["ID", "时间", "源IP", "目的IP", "端口", "判定", "级别", "置信度", "引擎", "依据"];
+  const lines = (data.items || []).map(a => [
+    a.id, a.ts, a.src, a.dst, a.dst_port, a.label_zh || a.label,
+    a.severity, Math.round((a.confidence || 0) * 100) + "%",
+    a.engine === "rule" ? "规则引擎" : "机器学习", a.basis,
+  ].join(","));
+  const csv = "\uFEFF" + [head.join(","), ...lines].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "nids_alert_history.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 function initTabs() {
   document.querySelectorAll(".tab").forEach(tab => {
     tab.addEventListener("click", () => {
@@ -417,6 +483,7 @@ function initTabs() {
       tab.classList.add("active");
       document.getElementById("tab-" + tab.dataset.tab).classList.add("active");
       if (tab.dataset.tab === "analysis") loadAnalysis();
+      if (tab.dataset.tab === "history") loadHistory();
     });
   });
 }
@@ -440,6 +507,22 @@ document.addEventListener("DOMContentLoaded", () => {
     e.target.value = "";
   });
   document.getElementById("btnReport").addEventListener("click", exportReport);
+  document.getElementById("btnHistRefresh").addEventListener("click", loadHistory);
+  document.getElementById("btnHistClear").addEventListener("click", clearHistory);
+  document.getElementById("btnHistExport").addEventListener("click", exportHistory);
+  document.getElementById("histSev").addEventListener("change", (e) => {
+    histState.severity = e.target.value;
+    histState.offset = 0;
+    loadHistory();
+  });
+  document.getElementById("histPrev").addEventListener("click", () => {
+    histState.offset = Math.max(0, histState.offset - histState.limit);
+    loadHistory();
+  });
+  document.getElementById("histNext").addEventListener("click", () => {
+    histState.offset += histState.limit;
+    loadHistory();
+  });
   document.getElementById("closeExplain").addEventListener("click", () => {
     document.getElementById("explainPanel").classList.remove("open");
   });

@@ -86,6 +86,7 @@
   .cm-head{color:var(--muted);font-size:10px;padding:4px}
   .cm-rowlabel{color:var(--muted);font-size:10px;padding:4px 8px;text-align:right;white-space:nowrap}
   #closeExplain{background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1}
+  .pager{display:flex;gap:12px;align-items:center;padding:12px 14px;justify-content:flex-end}
 </style>
 </head>
 <body>
@@ -97,6 +98,7 @@
   <nav class="tabs">
     <button class="tab active" data-tab="monitor">监控台</button>
     <button class="tab" data-tab="analysis">模型分析</button>
+    <button class="tab" data-tab="history">告警历史</button>
   </nav>
   <div class="status"><span id="runDot" class="dot"></span><span id="runText">运行中</span></div>
 </header>
@@ -175,6 +177,42 @@
   <section class="card">
     <h3>混淆矩阵（RandomForest 主模型）</h3>
     <div id="cmWrap" class="cm-wrap"></div>
+  </section>
+</main>
+
+<main id="tab-history" class="tab-panel">
+  <section class="stats">
+    <div class="card stat"><div class="label">历史告警总数</div><div class="num crit" id="histTotal">0</div></div>
+    <div class="card stat"><div class="label">严重</div><div class="num" id="histCritical">0</div></div>
+    <div class="card stat"><div class="label">高</div><div class="num" id="histHigh">0</div></div>
+    <div class="card stat"><div class="label">中</div><div class="num" id="histMedium">0</div></div>
+  </section>
+  <section class="card table-card">
+    <div class="table-head">
+      <h3>告警历史（SQLite 持久化）</h3>
+      <div class="filters">
+        <select id="histSev">
+          <option value="">全部级别</option>
+          <option value="critical">严重</option>
+          <option value="high">高</option>
+          <option value="medium">中</option>
+        </select>
+        <button id="btnHistRefresh" class="ghost">刷新</button>
+        <button id="btnHistClear" class="ghost">清空</button>
+        <button id="btnHistExport" class="ghost">导出 CSV</button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>#</th><th>时间</th><th>源 IP</th><th>目的</th><th>判定</th><th>级别</th><th>置信度</th><th>引擎</th><th>依据</th></tr></thead>
+        <tbody id="histBody"></tbody>
+      </table>
+    </div>
+    <div class="pager">
+      <button id="histPrev" class="ghost">上一页</button>
+      <span id="histPageInfo" class="muted"></span>
+      <button id="histNext" class="ghost">下一页</button>
+    </div>
   </section>
 </main>
 

@@ -21,5 +21,9 @@ Thumbs.db
 # WorkBuddy 本地数据
 .workbuddy-ai/
 
+# 运行时数据（不提交）
+data/alerts.db
+data/_upload.pcap
+
 # 说明：models/*.joblib 为训练产物，已随仓库提交，clone 后可直接运行；
 # 如需重新训练，执行 python train_model.py 即可覆盖生成。

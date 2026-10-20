@@ -17,7 +17,12 @@ Flask 后端 API（安全运营控制台版）
     GET  /api/scenarios         可用攻击场景清单
     GET  /api/rules             规则清单
     GET  /api/features          特征定义
-    POST /api/reset             重置（占位，统计在前端维护）
+    POST /api/pcap              上传 pcap 解析检测
+    POST /api/report            生成 HTML 检测报告
+    GET  /api/alerts            告警历史查询（分页/筛选）
+    GET  /api/alerts/stats      告警统计
+    POST /api/alerts/clear      清空告警历史
+    POST /api/reset             重置（占位）
 """
 
 import os
@@ -31,6 +36,7 @@ from flask import Flask, jsonify, request, send_from_directory
 from traffic_generator import FEATURES, LABELS, GENERATORS, simulate_live_event
 from detector import FusionPolicy, LABEL_ZH
 from pcap_parser import parse_pcap
+import storage
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(BASE, "frontend")
@@ -38,6 +44,7 @@ MODEL_DIR = os.path.join(BASE, "models")
 
 app = Flask(__name__, static_folder=None)
 fusion = FusionPolicy()
+storage.init()
 _rng = np.random.default_rng()
 
 SRC_POOL = ["10.0.0.11", "10.0.0.23", "172.16.8.4", "192.168.1.105",
@@ -86,6 +93,7 @@ def api_simulate():
     for i in range(n):
         feats, true_label = simulate_live_event(_rng)
         events.append(make_event(i, feats, true_label, now))
+    storage.insert_events(events)
     return jsonify({"events": events, "sensitivity": fusion.sensitivity})
 
 
@@ -109,6 +117,7 @@ def api_scenario():
             feats = dict(zip(FEATURES, vec))
             true_label = label
         events.append(make_event(i, feats, true_label, now))
+    storage.insert_events(events)
     return jsonify({"events": events, "scenario": stype, "intensity": intensity})
 
 
@@ -120,7 +129,14 @@ def api_detect():
     if missing:
         return jsonify({"error": f"缺少特征: {missing}", "required": FEATURES}), 400
     feats = {k: float(feats[k]) for k in FEATURES}
-    return jsonify(fusion.detect(feats))
+    result = fusion.detect(feats)
+    storage.insert_events([{
+        "ts": time.strftime("%H:%M:%S"),
+        "src": body.get("src", "api"), "dst": body.get("dst", "api"),
+        "dst_port": int(body.get("dst_port", 0) or 0),
+        "result": result,
+    }])
+    return jsonify(result)
 
 
 @app.route("/api/explain", methods=["POST"])
@@ -194,6 +210,26 @@ def api_rules():
 @app.route("/api/features")
 def api_features():
     return jsonify({"features": FEATURES, "labels_zh": LABEL_ZH})
+
+
+@app.route("/api/alerts")
+def api_alerts():
+    limit = min(int(request.args.get("limit", 100)), 500)
+    offset = int(request.args.get("offset", 0))
+    severity = request.args.get("severity") or None
+    label = request.args.get("label") or None
+    return jsonify(storage.query(limit, offset, severity, label))
+
+
+@app.route("/api/alerts/stats")
+def api_alerts_stats():
+    return jsonify(storage.stats())
+
+
+@app.route("/api/alerts/clear", methods=["POST"])
+def api_alerts_clear():
+    storage.clear()
+    return jsonify({"ok": True})
 
 
 @app.route("/api/reset", methods=["POST"])
@@ -280,6 +316,7 @@ def api_pcap():
             "result": result,
             "features": c["features"],
         })
+    storage.insert_events(events)
     attack = sum(1 for e in events if e["result"]["is_attack"])
     by_label = {}
     for e in events:
