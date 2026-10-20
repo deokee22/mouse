@@ -164,5 +164,14 @@ nids-project/
 
 对应接口：`/api/dataset_compare`。
 
+## 🆕 v6 工程化完善：配置 / 日志 / 测试 / Docker
+
+- **集中配置** `backend/config.py`：端口、路径、灵敏度、日志级别、上传上限，均支持环境变量覆盖（`NIDS_HOST` / `NIDS_PORT` / `NIDS_LOG_LEVEL` / `NIDS_SENSITIVITY`）。
+- **日志系统**：请求与异常写入 `logs/nids.log`，同时输出控制台。
+- **健康检查**：`GET /api/health` 返回服务状态、模型加载、灵敏度、DB 路径。
+- **统一错误处理**：404 / 500 返回 JSON。
+- **单元测试** `tests/`：检测器规则、PCAP 解析、告警存储共 **11 个用例**，运行 `python -m unittest discover -s tests`。
+- **Docker 部署**：`Dockerfile` + `docker-compose.yml`，`docker compose up -d` 一键启动。
+
 ## 📄 License
 MIT © 许智雄

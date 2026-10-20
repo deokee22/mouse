@@ -30,6 +30,7 @@ import json
 import time
 import random
 
+import logging
 import numpy as np
 from flask import Flask, jsonify, request, send_from_directory
 
@@ -37,12 +38,35 @@ from traffic_generator import FEATURES, LABELS, GENERATORS, simulate_live_event
 from detector import FusionPolicy, LABEL_ZH
 from pcap_parser import parse_pcap
 import storage
+import config
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(BASE, "frontend")
 MODEL_DIR = os.path.join(BASE, "models")
 
+os.makedirs(config.LOG_DIR, exist_ok=True)
+logging.basicConfig(
+    level=getattr(logging, config.LOG_LEVEL, logging.INFO),
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler(), logging.FileHandler(config.LOG_FILE, encoding="utf-8")],
+)
+logger = logging.getLogger("nids")
+
 app = Flask(__name__, static_folder=None)
+app.config["MAX_CONTENT_LENGTH"] = config.MAX_CONTENT_LENGTH
+
+
+@app.errorhandler(404)
+def _not_found(e):
+    return jsonify({"error": "not found"}), 404
+
+
+@app.errorhandler(500)
+def _server_error(e):
+    logger.exception("internal error")
+    return jsonify({"error": "internal server error"}), 500
+
+
 fusion = FusionPolicy()
 storage.init()
 _rng = np.random.default_rng()
@@ -256,6 +280,16 @@ def api_alerts_clear():
     return jsonify({"ok": True})
 
 
+@app.route("/api/health")
+def api_health():
+    return jsonify({
+        "status": "ok",
+        "sensitivity": fusion.sensitivity,
+        "model_loaded": fusion.ml.rf is not None,
+        "db": config.DB_PATH,
+    })
+
+
 @app.route("/api/reset", methods=["POST"])
 def api_reset():
     return jsonify({"ok": True})
@@ -362,5 +396,5 @@ def api_report():
 
 
 if __name__ == "__main__":
-    print("NIDS 服务已启动: http://127.0.0.1:5000")
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    logger.info("NIDS 服务已启动: http://%s:%d", config.HOST, config.PORT)
+    app.run(host=config.HOST, port=config.PORT, debug=False)
