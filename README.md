@@ -138,5 +138,13 @@ nids-project/
 
 对应接口：`/api/scenario`、`/api/sensitivity`、`/api/explain`、`/api/model_compare`、`/api/feature_importance`、`/api/scenarios`。
 
+## 🆕 v3 增强：真实 PCAP 与检测报告
+
+- **真实 PCAP 上传**：上传 `.pcap` 文件，Scapy 解析包级流量并按双向五元组聚合为 9 维连接特征，复用双引擎检测——不再只是"合成数据"。
+- **示例 PCAP**：`data/sample.pcap`（1109 包），含正常 HTTP + SYN 洪泛 + 端口扫描 + SSH 爆破 + 数据外泄；实测四类攻击全部识别（121 连接 / 91 攻击）。
+- **检测报告导出**：一键生成 HTML 检测报告（KPI、攻击分布、明细表），可下载留痕。
+
+对应接口：`/api/pcap`（multipart 上传）、`/api/report`（生成 HTML 报告）。
+
 ## 📄 License
 MIT © 许智雄

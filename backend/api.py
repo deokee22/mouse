@@ -30,6 +30,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from traffic_generator import FEATURES, LABELS, GENERATORS, simulate_live_event
 from detector import FusionPolicy, LABEL_ZH
+from pcap_parser import parse_pcap
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(BASE, "frontend")
@@ -198,6 +199,105 @@ def api_features():
 @app.route("/api/reset", methods=["POST"])
 def api_reset():
     return jsonify({"ok": True})
+
+
+def build_report_html(stats, events):
+    import html as _html
+    total = stats.get("total", 0)
+    attack = stats.get("attack", 0)
+    by_label = stats.get("by_label", {})
+    label_zh = {"normal": "正常", "dos": "拒绝服务", "port_scan": "端口扫描",
+                "brute_force": "暴力破解", "exfiltration": "数据外泄"}
+    label_rows = "".join(
+        "<li>%s：%d</li>" % (_html.escape(label_zh.get(k, k)), v)
+        for k, v in by_label.items())
+    rows = []
+    for e in events[:500]:
+        r = e.get("result", {})
+        rows.append(
+            "<tr><td>%s</td><td>%s</td><td>%s:%s</td><td>%s</td><td>%s</td><td>%s%%</td></tr>" % (
+                _html.escape(str(e.get("ts", ""))),
+                _html.escape(str(e.get("src", ""))),
+                _html.escape(str(e.get("dst", ""))),
+                e.get("dst_port", ""),
+                _html.escape(str(r.get("label_zh", ""))),
+                r.get("severity", ""),
+                round(float(r.get("confidence", 0)) * 100, 1),
+            ))
+    return """<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>NIDS 检测报告</title>
+<style>
+body{font-family:'Microsoft YaHei',sans-serif;max-width:920px;margin:40px auto;color:#222;padding:0 20px}
+h1{border-bottom:2px solid #1E4FA8;padding-bottom:10px}
+.kpi{display:flex;gap:30px;margin:20px 0}
+.kpi div{background:#f4f7fb;padding:16px 24px;border-radius:8px}
+.kpi b{font-size:24px;color:#1E4FA8}
+table{width:100%%;border-collapse:collapse;margin-top:20px}
+th,td{border:1px solid #ddd;padding:6px 10px;font-size:13px;text-align:left}
+th{background:#1E4FA8;color:#fff}
+</style></head><body>
+<h1>NIDS 入侵检测报告</h1>
+<p>生成时间：%s</p>
+<div class="kpi"><div>已检测连接<br><b>%d</b></div><div>攻击警告<br><b style="color:#c0392b">%d</b></div></div>
+<h3>攻击类型分布</h3><ul>%s</ul>
+<h3>检测明细（前 500 条）</h3>
+<table><thead><tr><th>时间</th><th>源 IP</th><th>目的</th><th>判定</th><th>级别</th><th>置信度</th></tr></thead>
+<tbody>%s</tbody></table>
+<p style="color:#888;margin-top:30px">由 NIDS 双引擎检测系统生成</p>
+</body></html>""" % (time.strftime("%Y-%m-%d %H:%M:%S"), total, attack, label_rows, "".join(rows))
+
+
+@app.route("/api/pcap", methods=["POST"])
+def api_pcap():
+    if "file" not in request.files:
+        return jsonify({"error": "未上传文件"}), 400
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"error": "文件名为空"}), 400
+    tmp_path = os.path.join(BASE, "data", "_upload.pcap")
+    os.makedirs(os.path.dirname(tmp_path), exist_ok=True)
+    f.save(tmp_path)
+    try:
+        conns = parse_pcap(tmp_path)
+    except Exception as e:
+        return jsonify({"error": "解析失败: %s" % e}), 400
+    finally:
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
+
+    events = []
+    now = time.time()
+    for i, c in enumerate(conns):
+        result = fusion.detect(c["features"])
+        events.append({
+            "id": int(now * 1000) + i,
+            "ts": "PCAP",
+            "src": c["src"],
+            "dst": c["dst"],
+            "dst_port": c["dport"],
+            "result": result,
+            "features": c["features"],
+        })
+    attack = sum(1 for e in events if e["result"]["is_attack"])
+    by_label = {}
+    for e in events:
+        k = e["result"]["label"]
+        by_label[k] = by_label.get(k, 0) + 1
+    return jsonify({
+        "summary": {"total": len(events), "attack": attack, "by_label": by_label},
+        "events": events,
+    })
+
+
+@app.route("/api/report", methods=["POST"])
+def api_report():
+    body = request.get_json(force=True)
+    stats = body.get("stats", {})
+    events = body.get("events", [])
+    html = build_report_html(stats, events)
+    return app.response_class(html, mimetype="text/html")
 
 
 if __name__ == "__main__":

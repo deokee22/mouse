@@ -304,6 +304,53 @@ function exportCsv() {
   URL.revokeObjectURL(a.href);
 }
 
+async function uploadPcap(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  document.getElementById("lastInfo").textContent = "解析 PCAP 中…";
+  try {
+    const res = await fetch("/api/pcap", { method: "POST", body: fd });
+    const data = await res.json();
+    if (data.error) {
+      document.getElementById("lastInfo").textContent = "解析失败：" + data.error;
+      return;
+    }
+    processEvents(data.events || []);
+    const s = data.summary || {};
+    document.getElementById("lastInfo").textContent =
+      `PCAP 解析完成：${s.total} 条连接，${s.attack} 条攻击`;
+  } catch (err) {
+    document.getElementById("lastInfo").textContent = "上传失败：" + err.message;
+  }
+}
+
+async function exportReport() {
+  const by_label = {};
+  state.rows.forEach(e => {
+    const k = e.result.label;
+    by_label[k] = (by_label[k] || 0) + 1;
+  });
+  const stats = { total: state.total, attack: state.attack, by_label };
+  const events = state.rows.map(e => ({
+    ts: e.ts, src: e.src, dst: e.dst, dst_port: e.dst_port, result: e.result,
+  }));
+  try {
+    const res = await fetch("/api/report", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stats, events }),
+    });
+    const html = await res.text();
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "nids_report_" + new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-") + ".html";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (err) {
+    document.getElementById("lastInfo").textContent = "报告生成失败：" + err.message;
+  }
+}
+
 async function loadMetrics() {
   try {
     const res = await fetch("/api/metrics");
@@ -386,6 +433,13 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btnStep").addEventListener("click", fetchBatch);
   document.getElementById("btnReset").addEventListener("click", resetAll);
   document.getElementById("btnExport").addEventListener("click", exportCsv);
+  document.getElementById("btnPcap").addEventListener("click", () => document.getElementById("pcapFile").click());
+  document.getElementById("pcapFile").addEventListener("change", (e) => {
+    const f = e.target.files[0];
+    if (f) uploadPcap(f);
+    e.target.value = "";
+  });
+  document.getElementById("btnReport").addEventListener("click", exportReport);
   document.getElementById("closeExplain").addEventListener("click", () => {
     document.getElementById("explainPanel").classList.remove("open");
   });
