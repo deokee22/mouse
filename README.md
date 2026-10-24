@@ -88,7 +88,7 @@ nids-project/
 ## 🔬 关键技术
 
 ### 特征工程
-参考 NSL-KDD 连接记录范式，从每条连接聚合出 **9 维特征**：`duration`、`protocol_type`、`src_bytes`、`dst_bytes`、`packet_count`、`failed_logins`、`num_unique_ports`、`syn_rate`、`bytes_per_packet`。
+借鉴连接记录式 IDS 的思路，从 PCAP 聚合出 **9 维自定义特征**：`duration`、`protocol_type`、`src_bytes`、`dst_bytes`、`packet_count`、`failed_logins`、`num_unique_ports`、`syn_rate`、`bytes_per_packet`。其中 `failed_logins` 当前只是源 IP 发往 21/22/3389 端口的包命中数，并非真实失败登录次数；`num_unique_ports` 是源 IP 在整个 PCAP 范围内访问的不同目的端口数。详细语义与边界见 [`docs/特征语义说明.md`](docs/特征语义说明.md)。
 
 ### 双引擎设计动机
 - **规则引擎**：对已知攻击模式给出零延迟、可解释的判定，但无法发现规则之外的攻击。
@@ -101,7 +101,7 @@ nids-project/
 - 混淆矩阵显示误判集中在 `normal ↔ port_scan` 边界（低速扫描与高频正常访问形态重叠），这是刻意保留的边界样本，用于讨论误报与漏报的权衡。
 
 ### 数据集说明
-演示版使用**合成流量生成器**（`traffic_generator.py`），按各类攻击统计特征建模，并通过 `boundary_mix` 参数注入约 6% 类边界重叠样本，避免指标虚高。工程化落地时可替换为 NSL-KDD / CICIDS-2017 真实数据集，特征提取层（`FEATURES`）保持不变即可。
+演示版使用**合成流量生成器**（`traffic_generator.py`），按各类攻击统计特征建模，并通过 `boundary_mix` 参数注入约 6% 类边界重叠样本，避免指标虚高。目前训练与指标主要来自合成数据及自建的贴近真实分布数据，尚不能据此声称已在 CICIDS2017 等公开真实数据集上验证。接入公开数据集时需要单独编写适配器，并逐项核对字段语义、单位、聚合窗口和标签；不能假定 `FEATURES` 与公开数据集原始特征一一对应。详见 [`docs/特征语义说明.md`](docs/特征语义说明.md)。
 
 ---
 
@@ -170,7 +170,7 @@ nids-project/
 - **日志系统**：请求与异常写入 `logs/nids.log`，同时输出控制台。
 - **健康检查**：`GET /api/health` 返回服务状态、模型加载、灵敏度、DB 路径。
 - **统一错误处理**：404 / 500 返回 JSON。
-- **单元测试** `tests/`：检测器规则、PCAP 解析、告警存储共 **11 个用例**，运行 `python -m unittest discover -s tests`。
+- **单元测试** `tests/`：检测器规则、PCAP 解析、告警存储共 **15 个用例**，运行 `python -m unittest discover -s tests`。
 - **Docker 部署**：`Dockerfile` + `docker-compose.yml`，`docker compose up -d` 一键启动。
 
 ## 📄 License
