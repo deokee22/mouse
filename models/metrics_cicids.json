@@ -1,0 +1,56 @@
+{
+  "dataset": "CICIDS2017 (binary)",
+  "n_total": 4000,
+  "n_features": 14,
+  "attack_ratio": 0.3,
+  "models": {
+    "LogisticRegression": {
+      "accuracy": 0.909,
+      "precision": 0.9409,
+      "recall": 0.7433,
+      "f1": 0.8305,
+      "confusion_matrix": [
+        [
+          686,
+          14
+        ],
+        [
+          77,
+          223
+        ]
+      ]
+    },
+    "RandomForest": {
+      "accuracy": 0.973,
+      "precision": 0.9928,
+      "recall": 0.9167,
+      "f1": 0.9532,
+      "confusion_matrix": [
+        [
+          698,
+          2
+        ],
+        [
+          25,
+          275
+        ]
+      ]
+    }
+  },
+  "feature_names": [
+    "Destination Port",
+    "Flow Duration",
+    "Total Fwd Packets",
+    "Total Backward Packets",
+    "Total Length of Fwd Packets",
+    "Total Length of Bwd Packets",
+    "Fwd Packet Length Mean",
+    "Bwd Packet Length Mean",
+    "Flow Bytes/s",
+    "Flow Packets/s",
+    "SYN Flag Count",
+    "ACK Flag Count",
+    "RST Flag Count",
+    "Average Packet Size"
+  ]
+}

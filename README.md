@@ -173,5 +173,14 @@ nids-project/
 - **单元测试** `tests/`：检测器规则、PCAP 解析、告警存储共 **15 个用例**，运行 `python -m unittest discover -s tests`。
 - **Docker 部署**：`Dockerfile` + `docker-compose.yml`，`docker compose up -d` 一键启动。
 
+## 🆕 P1：CICIDS2017 真实数据集接入
+
+- **适配器** `backend/cicids_adapter.py`：读取 CICIDS2017 MachineLearningCSV，支持二分类（BENIGN vs Attack）与多分类（映射到项目 5 类）。
+- **训练脚本** `train_cicids.py`：二分类基线（LogisticRegression + RandomForest），输出 `models/metrics_cicids.json`。
+- **构造样本** `scripts/make_cicids_sample.py`：生成 CICIDS 格式样本，用于验证流程（**非真实数据**）。
+- **接入说明** `docs/CICIDS接入说明.md`：下载、标签映射、数据泄漏注意事项。
+
+> 注意：当前 `data/cicids/sample.csv` 是构造样本，仅验证流程；真实实验请用官方 CSV 替换。
+
 ## 📄 License
 MIT © 许智雄
