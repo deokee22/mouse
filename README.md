@@ -9,10 +9,12 @@
 ## ✨ 核心特性
 
 - **双引擎融合检测**：规则引擎（白盒可解释）+ 机器学习引擎（RandomForest 分类 + IsolationForest 异常检测），规则优先、ML 兜底。
+- **规则是可热加载的数据**：14 条规则写在 `rules/*.yaml`，改完调 `/api/rules/reload` 立即生效，不用重启；每条规则带 MITRE ATT&CK 编号。
+- **告警关联降噪**：同一攻击源 10 分钟内的告警自动聚合成"攻击事件"，推断攻击链阶段（侦察→初始访问→影响→外泄），实测 300 条告警压缩到 8 个事件（降噪 97%）。
+- **服务端实时推送**：后台流引擎持续产生流量并检测，通过 SSE 推给控制台，不再依赖前端轮询。
 - **可解释性**：每条警告输出命中规则名与置信度，不是黑盒。
 - **未知攻击发现**：IsolationForest 仅用正常流量训练，专门捕捉训练时未见的异常形态。
-- **边界样本建模**：刻意注入 6% 类边界重叠样本，避免指标虚高、更贴近真实流量。
-- **实时可视化**：Flask REST API + Chart.js 仪表盘，实时展示检测趋势、攻击分布与日志。
+- **实验完整**：均衡基线 / 真实分布 / CICIDS2017 二分类 / 特征消融四组实验，47 项单元测试。
 
 ---
 
@@ -37,48 +39,69 @@ python backend/api.py
 ## 🏗️ 系统架构
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    浏览器仪表盘 (Chart.js)                │
-│   实时趋势图 │ 攻击分布饼图 │ 警告日志 │ 置信度展示        │
-└──────────────────────▲──────────────────────────────────┘
-                       │ REST API (JSON)
-┌──────────────────────┴──────────────────────────────────┐
-│                    Flask 后端 (api.py)                    │
-│   /api/simulate  /api/detect  /api/metrics  /api/rules   │
-└──────────────────────▲──────────────────────────────────┘
-                       │
-┌──────────────────────┴──────────────────────────────────┐
-│                 融合策略 FusionPolicy                     │
-│   规则命中 → 直接采信（高置信）                           │
-│   否则 → ML 分类结果 + 异常分修正（可疑标记）              │
-└──────────▲───────────────────────────▲──────────────────┘
-           │                           │
-┌──────────┴──────────┐   ┌────────────┴─────────────────┐
-│   规则引擎           │   │   机器学习引擎                 │
-│   5 条领域规则        │   │   RandomForest（攻击分类）     │
-│   白盒 / 可解释       │   │   IsolationForest（异常检测）  │
-└─────────────────────┘   └──────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                  浏览器控制台 (Chart.js + EventSource)          │
+│  监控台 │ 攻击事件 │ 规则库 │ 模型分析 │ 告警历史                 │
+└────────▲──────────────────────────────┬──────────────────────┘
+         │ SSE 实时推送（服务端 → 前端）    │ REST（启停/查询/配置）
+┌────────┴──────────────────────────────▼──────────────────────┐
+│                      Flask 后端 (api.py, threaded)             │
+└────────▲──────────────────────┬───────────────────────────────┘
+         │                      │
+┌────────┴─────────┐   ┌────────▼─────────┐   ┌────────────────┐
+│ 实时流 StreamEngine│   │ 检测 FusionPolicy │   │ 关联 Correlation │
+│ 战役模型持续产生流量│──▶│ 规则优先 + ML 兜底 │──▶│ 同源聚合/攻击链  │
+└──────────────────┘   └────────┬─────────┘   └───────┬────────┘
+                                │                     │
+                    ┌───────────┴──────────┐   ┌──────▼───────┐
+                    │ 规则引擎（YAML DSL）  │   │ SQLite        │
+                    │ 14 条规则 · 可热加载  │   │ alerts        │
+                    ├──────────────────────┤   │ incidents     │
+                    │ ML 引擎               │   └──────────────┘
+                    │ RF 分类 + IF 异常检测 │
+                    └──────────────────────┘
 ```
 
 ## 📁 目录结构
 
 ```
 nids-project/
-├── train_model.py            # 模型训练与评估（入口脚本）
+├── train_model.py            # 主模型训练（均衡数据）
+├── train_realistic.py        # 真实分布数据集对比实验
+├── train_cicids.py           # CICIDS2017 二分类基线
+├── train_ablation.py         # 特征消融实验（A/B/C 三组）
 ├── requirements.txt
+├── rules/                    # ★ 规则库（YAML DSL，可热加载）
+│   ├── dos.yaml              #   DoS 类 4 条
+│   ├── port_scan.yaml        #   端口扫描 4 条
+│   ├── brute_force.yaml      #   暴力破解 3 条
+│   └── exfiltration.yaml     #   数据外泄 3 条
 ├── backend/
 │   ├── traffic_generator.py  # 合成流量生成器（5 类标签、含边界样本）
+│   ├── rule_dsl.py           # 规则 DSL：加载/条件树/热重载/错误隔离
 │   ├── detector.py           # 规则引擎 + ML 引擎 + 融合策略
-│   └── api.py                # Flask REST 服务
+│   ├── correlation.py        # 告警关联：聚合/攻击链/风险打分
+│   ├── stream_engine.py      # 实时流：战役模型 + SSE 广播
+│   ├── event_factory.py      # 事件结构（模拟与实时共用）
+│   ├── storage.py            # SQLite：alerts + incidents
+│   ├── pcap_parser.py        # PCAP 解析（TCP 会话切分）
+│   ├── cicids_adapter.py     # CICIDS2017 适配器
+│   ├── realistic_dataset.py  # 真实分布数据集生成
+│   ├── config.py             # 环境变量配置中心
+│   └── api.py                # Flask REST + SSE 服务
 ├── frontend/
-│   ├── index.html            # 仪表盘页面
-│   └── dashboard.js          # 前端逻辑（轮询 + Chart.js 渲染）
-├── models/                   # train_model.py 产出
+│   ├── index.html            # 控制台页面（5 个标签页）
+│   └── dashboard.js          # 前端逻辑（SSE 接收 + Chart.js 渲染）
+├── models/                   # 训练产出
 │   ├── random_forest.joblib
 │   ├── isolation_forest.joblib
-│   └── metrics.json          # 评估指标快照
-├── data/
-│   └── train_sample.csv      # 训练数据样本（展示用）
+│   ├── metrics.json          # 均衡数据指标
+│   ├── metrics_realistic.json# 真实分布指标
+│   ├── metrics_cicids.json   # CICIDS 指标
+│   └── metrics_ablation.json # 消融实验结果
+├── tests/                    # 47 项单元测试
+├── docs/                     # 设计文档与专题说明
+├── data/                     # 样本数据、PCAP、SQLite 库
 ├── NIDS项目答辩/             # 答辩 PPT 与大纲
 └── 答辩宝典.md               # 口语化走读 + 导师追问话术
 ```
@@ -109,21 +132,31 @@ nids-project/
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
+| GET | `/api/stream` | **SSE 实时推送**检测事件 |
+| GET | `/api/stream/status` | 实时流状态（速率/已推送/攻击数） |
+| POST | `/api/stream/start` | 启动实时流，body: `{"rate": 2}` |
+| POST | `/api/stream/stop` | 暂停实时流 |
+| GET | `/api/incidents` | 攻击事件列表（含降噪比统计） |
+| GET | `/api/incidents/<id>` | 事件详情 + 原始告警下钻 |
+| POST | `/api/incidents/<id>/status` | 处置状态流转（open/investigating/closed） |
+| GET | `/api/rules` | 规则库（YAML DSL，含 ATT&CK 与命中次数） |
+| POST | `/api/rules/reload` | 热重载规则文件，无需重启 |
 | GET | `/api/simulate?n=20` | 模拟 n 条流量并逐条检测 |
+| GET | `/api/scenario?type=ssh` | 指定攻击场景批量注入 |
 | POST | `/api/detect` | 对单条特征记录检测，body: `{"features": {...}}` |
 | GET | `/api/metrics` | 模型评估指标 |
 | GET | `/api/dataset_compare` | 平衡合成 vs 真实分布 两套数据集指标对比 |
 | GET | `/api/ablation` | 特征消融实验（A/B/C 三组特征） |
 | GET | `/api/cicids` | CICIDS2017 二分类基线结果 |
-| GET | `/api/rules` | 规则引擎规则清单 |
 | GET | `/api/features` | 特征定义 |
 
 ---
 
 ## 📌 可扩展方向
+- 规则从"单连接判据"升级为"跨事件状态机"（CEP：5 分钟内失败 20 次再成功 1 次）
 - 用官方 CICIDS2017 全量 CSV 复跑 P1 / P2（当前为构造样本）
 - 增加 LSTM/AutoEncoder 时序模型做对比
-- 告警持久化（SQLite）与历史查询接口
+- 真实网卡抓包（需 Npcap，Windows 下要管理员权限）
 - PCAP 文件上传解析（Scapy / Zeek）
 
 ---
@@ -203,6 +236,30 @@ nids-project/
 
 - 脚本：`train_ablation.py` → `models/metrics_ablation.json`
 - 接口：`GET /api/ablation`，控制台"模型分析"页可视化
+
+## 🆕 P3：实时流 · 告警关联 · 规则 DSL
+
+从"能检测"到"能运营"，补三块：
+
+**1. 实时流（`stream_engine.py`）**
+
+后台线程按固定速率产生流量 → 检测 → 落库 → 关联 → 通过 SSE 广播。控制台打开就在动，不再需要点按钮。内含"攻击战役"模型：一个源按杀伤链推进（扫描→爆破→洪泛→外传），战役之间留平静期，背景流量占 45%。
+
+**2. 告警关联（`correlation.py`）**
+
+| 能力 | 实现 |
+|---|---|
+| 聚合 | 同源 + 10 分钟滑动窗口 → 一个 incident |
+| 攻击链 | 4 阶段模型，按 MITRE 战术顺序排列 |
+| 风险分 | `严重度基数 + 15×阶段跨度 + 5·log2(告警数)`，封顶 100 |
+| 降噪比 | `alerts / incidents`，控制台直接展示 |
+| 处置 | open → investigating → closed，已关闭不再接收新告警 |
+
+**3. 规则 DSL（`rule_dsl.py` + `rules/*.yaml`）**
+
+规则从硬编码 `if` 变成 YAML 数据：条件树（all/any/none 可嵌套）、比值运算符（`src_bytes >= 20×dst_bytes`）、灵敏度自动缩放、文件 mtime 热重载、单规则错误隔离。14 条规则覆盖 4 类攻击，全部标注 ATT&CK。
+
+详见 [`docs/P3_实时流与告警关联.md`](docs/P3_实时流与告警关联.md)。
 
 ## 📄 License
 MIT © 许智雄

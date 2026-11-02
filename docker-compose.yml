@@ -8,6 +8,8 @@ services:
       - NIDS_HOST=0.0.0.0
       - NIDS_PORT=5000
       - NIDS_LOG_LEVEL=INFO
+      - NIDS_STREAM_RATE=2
+      - NIDS_CORRELATION_WINDOW=600
     volumes:
       - ./data:/app/data
       - ./models:/app/models

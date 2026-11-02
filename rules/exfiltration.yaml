@@ -1,0 +1,72 @@
+version: 1
+# 数据外泄类规则
+# 判据核心：上行字节远大于下行（正常业务是"下载多、上传少"）
+rules:
+  - id: EX-001
+    name: 上行流量失衡
+    enabled: true
+    attack: exfiltration
+    severity: critical
+    confidence: 0.88
+    attck: T1041
+    attck_name: Exfiltration Over C2 Channel
+    description: 上行字节 ≥ 500KB 且达到下行的 20 倍以上，与正常"下载为主"的流量方向相反
+    tags: [exfil, volume]
+    window: 300s
+    condition:
+      all:
+        - field: src_bytes
+          op: gte
+          value: 500000
+        - field: src_bytes
+          op: ratio_gte
+          value:
+            other: dst_bytes
+            factor: 20
+            floor: 1
+
+  - id: EX-002
+    name: 大流量单向外传
+    enabled: true
+    attack: exfiltration
+    severity: critical
+    confidence: 0.86
+    attck: T1048
+    attck_name: Exfiltration Over Alternative Protocol
+    description: 上行 ≥ 200KB 而对端回包不足 5KB，长时间单向推送，符合隐蔽通道外传
+    tags: [exfil, covert-channel]
+    window: 300s
+    condition:
+      all:
+        - field: src_bytes
+          op: gte
+          value: 200000
+        - field: dst_bytes
+          op: lte
+          value: 5000
+        - field: duration
+          op: gte
+          value: 10
+
+  - id: EX-003
+    name: 长连接持续外传
+    enabled: true
+    attack: exfiltration
+    severity: high
+    confidence: 0.8
+    attck: T1030
+    attck_name: Data Transfer Size Limits
+    description: 连接持续 2 分钟以上、包数过千且上行可观，符合分片慢速外传以规避流量审计
+    tags: [exfil, long-lived]
+    window: 300s
+    condition:
+      all:
+        - field: duration
+          op: gte
+          value: 120
+        - field: packet_count
+          op: gte
+          value: 2000
+        - field: src_bytes
+          op: gte
+          value: 100000

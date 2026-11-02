@@ -1,0 +1,86 @@
+version: 1
+# 端口扫描 / 网络服务发现类规则
+# 判据核心：单源访问端口数异常多 + 每条连接极短极小
+rules:
+  - id: SCAN-001
+    name: 端口离散度异常
+    enabled: true
+    attack: port_scan
+    severity: medium
+    confidence: 0.92
+    attck: T1046
+    attck_name: Network Service Discovery
+    description: 时间窗内单源访问的不同目的端口数超过 15，远超正常主机（正常 1~4 个）
+    tags: [recon, discovery]
+    window: 60s
+    condition:
+      all:
+        - field: num_unique_ports
+          op: gte
+          value: 15
+
+  - id: SCAN-002
+    name: 水平扫描
+    enabled: true
+    attack: port_scan
+    severity: high
+    confidence: 0.94
+    attck: T1046
+    attck_name: Network Service Discovery
+    description: 连接极短（<1s）、包数极少（≤8）却覆盖大量端口，是典型的批量探测节奏
+    tags: [recon, fast-scan]
+    window: 60s
+    condition:
+      all:
+        - field: num_unique_ports
+          op: gte
+          value: 30
+        - field: packet_count
+          op: lte
+          value: 8
+        - field: duration
+          op: lte
+          value: 1
+
+  - id: SCAN-003
+    name: 低速隐蔽扫描
+    enabled: true
+    attack: port_scan
+    severity: medium
+    confidence: 0.82
+    attck: T1046
+    attck_name: Network Service Discovery
+    description: 端口覆盖面较大但包量极小、平均包长偏低，符合规避阈值的慢速扫描
+    tags: [recon, slow-scan, evasion]
+    window: 60s
+    condition:
+      all:
+        - field: num_unique_ports
+          op: gte
+          value: 12
+        - field: packet_count
+          op: lte
+          value: 10
+        - field: bytes_per_packet
+          op: lte
+          value: 100
+
+  - id: SCAN-004
+    name: 探测型高SYN比例
+    enabled: true
+    attack: port_scan
+    severity: medium
+    confidence: 0.78
+    attck: T1046
+    attck_name: Network Service Discovery
+    description: 多端口访问同时 SYN 占比偏高，说明只发了握手包就放弃，未建立完整会话
+    tags: [recon, syn]
+    window: 60s
+    condition:
+      all:
+        - field: num_unique_ports
+          op: gte
+          value: 20
+        - field: syn_rate
+          op: gte
+          value: 0.7

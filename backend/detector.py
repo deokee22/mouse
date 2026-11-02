@@ -24,6 +24,7 @@ import numpy as np
 import joblib
 
 from traffic_generator import FEATURES, LABELS
+from rule_dsl import RuleSet
 
 MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models")
 
@@ -45,32 +46,28 @@ SEVERITY = {
 
 
 class RuleEngine:
-    """基于阈值与统计特征的白盒规则集，阈值随灵敏度缩放。"""
+    """规则引擎：委托给可热加载的规则 DSL（见 rule_dsl.py）。
+
+    规则不再是硬编码的 if，而是 rules/*.yaml 里的数据；
+    改完 YAML 调 /api/rules/reload 即可生效，无需重启服务。
+    """
+
+    def __init__(self, rules_dir=None):
+        self.rule_set = RuleSet(rules_dir)
+
+    @property
+    def rules(self):
+        return self.rule_set.rules
+
+    def reload(self):
+        return self.rule_set.reload()
 
     def evaluate(self, features: dict, sensitivity: float = 0.5):
         # sensitivity 0 -> k=1.25（阈值抬高，更保守）；1 -> k=0.75（阈值降低，更敏感）
-        s = max(0.0, min(1.0, float(sensitivity)))
-        k = 1.25 - 0.5 * s
-        hits = []
+        return self.rule_set.evaluate(features, sensitivity)
 
-        def add(name, label, conf):
-            hits.append({"rule": name, "label": label, "confidence": conf})
-
-        try:
-            if features["syn_rate"] > 0.8 * k and features["packet_count"] > 400 * k:
-                add("SYN洪泛特征", "dos", 0.95)
-            if features["packet_count"] > 800 * k and features["bytes_per_packet"] < 100.0 / k:
-                add("小包洪泛", "dos", 0.85)
-            if features["num_unique_ports"] > 15 * k:
-                add("端口离散度异常", "port_scan", 0.92)
-            if features["failed_logins"] >= 8 * k:
-                add("高频失败登录", "brute_force", 0.90)
-            if (features["src_bytes"] > 500_000 * k
-                    and features["src_bytes"] > 20 * k * max(features["dst_bytes"], 1)):
-                add("上行流量失衡", "exfiltration", 0.88)
-        except Exception:
-            pass
-        return hits
+    def stats(self):
+        return self.rule_set.stats()
 
 
 class MLEngine:

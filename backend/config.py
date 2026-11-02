@@ -21,6 +21,12 @@ PORT = int(os.environ.get("NIDS_PORT", "5000"))
 # 检测默认参数
 DEFAULT_SENSITIVITY = float(os.environ.get("NIDS_SENSITIVITY", "0.5"))
 
+# 实时流：每秒产生多少个连接事件（0.2~50 之间）
+STREAM_RATE = float(os.environ.get("NIDS_STREAM_RATE", "2.0"))
+
+# 告警关联：同一攻击源多久内的告警归并为一个攻击事件（秒）
+CORRELATION_WINDOW = int(os.environ.get("NIDS_CORRELATION_WINDOW", "600"))
+
 # 日志
 LOG_LEVEL = os.environ.get("NIDS_LOG_LEVEL", "INFO").upper()
 LOG_FILE = os.path.join(LOG_DIR, "nids.log")

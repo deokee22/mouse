@@ -8,11 +8,14 @@ const SCEN = [
 ];
 
 const state = {
-  total: 0, attack: 0, live: true, timer: null,
+  total: 0, attack: 0, live: true, timer: null, es: null,
   sensitivity: 0.5, scenario: "mix", intensity: "medium",
   labelCount: {}, protoCount: {}, srcAttack: {},
   trendLabels: [], trendAttack: [], trendNormal: [],
+  trendAcc: { attack: 0, normal: 0 },
   rows: [], filter: "all",
+  incidents: [], incFilter: "", incTimer: null, streamRate: 2,
+  seenIncidents: new Set(),
 };
 
 const charts = {};
@@ -141,7 +144,8 @@ function processEvents(events) {
   });
   if (state.rows.length > 400) state.rows.length = 400;
 
-  pushTrend(attack, normal);
+  state.trendAcc.attack += attack;
+  state.trendAcc.normal += normal;
   updatePie();
   updateProto();
   updateSrc();
@@ -169,6 +173,14 @@ function pushTrend(attack, normal) {
   charts.trend.data.datasets[0].data = state.trendAttack;
   charts.trend.data.datasets[1].data = state.trendNormal;
   charts.trend.update("none");
+}
+
+// 实时流是逐条到达的，如果每条都往趋势图上打一个点，2 秒就会刷满。
+// 所以先累加，每 2 秒汇总成一个点。
+function flushTrend() {
+  if (!state.trendAcc.attack && !state.trendAcc.normal) return;
+  pushTrend(state.trendAcc.attack, state.trendAcc.normal);
+  state.trendAcc = { attack: 0, normal: 0 };
 }
 
 function updatePie() {
@@ -275,21 +287,84 @@ function renderExplain(ex) {
   document.getElementById("explainBody").innerHTML = html;
 }
 
-function toggleLive() {
-  state.live = !state.live;
+/* ================= 实时流（SSE） ================= */
+function setLiveUI(on, text) {
+  state.live = on;
   const btn = document.getElementById("btnLive");
-  const dot = document.getElementById("liveDot");
+  const badge = document.getElementById("liveBadge");
+  const badgeText = document.getElementById("liveBadgeText");
   const runDot = document.getElementById("runDot");
   const runText = document.getElementById("runText");
-  if (state.live) {
-    btn.innerHTML = '<span id="liveDot" class="dot"></span>暂停监控';
-    dot.classList.remove("off"); runDot.classList.remove("off"); runText.textContent = "运行中";
-    state.timer = setInterval(fetchBatch, 2500);
-  } else {
-    btn.innerHTML = '<span id="liveDot" class="dot off"></span>继续监控';
-    dot.classList.add("off"); runDot.classList.add("off"); runText.textContent = "已暂停";
-    clearInterval(state.timer);
+  btn.innerHTML = on
+    ? '<span id="liveDot" class="dot"></span>暂停监控'
+    : '<span id="liveDot" class="dot off"></span>继续监控';
+  if (badge) badge.classList.toggle("paused", !on);
+  if (badgeText) badgeText.textContent = text || (on ? "接收中" : "已暂停");
+  if (runDot) runDot.classList.toggle("off", !on);
+  if (runText) runText.textContent = on ? "运行中" : "已暂停";
+}
+
+function updateStreamInfo(s) {
+  if (!s) return;
+  const el = document.getElementById("streamInfo");
+  if (!el) return;
+  el.textContent = `已推送 ${s.emitted} 条 · 攻击 ${s.attacks} 条 · ${s.rate} 条/秒 · 已运行 ${Math.round(s.uptime)}s`;
+}
+
+function connectStream() {
+  if (state.es) { state.es.close(); state.es = null; }
+  const es = new EventSource("/api/stream");
+  state.es = es;
+  es.onopen = () => setLiveUI(true, "接收中");
+  es.onmessage = (msg) => {
+    let d;
+    try { d = JSON.parse(msg.data); } catch (_) { return; }
+    if (d.type === "event") {
+      handleStreamEvent(d.event, d.stats);
+    } else if (d.type === "hello") {
+      updateStreamInfo(d.stats);
+    }
+  };
+  es.onerror = () => {
+    // EventSource 会自己重连，这里只把 UI 状态标出来，避免"看着在跑其实断了"
+    setLiveUI(true, "重连中…");
+  };
+}
+
+function handleStreamEvent(e, stats) {
+  if (!e) return;
+  processEvents([e]);
+  updateStreamInfo(stats);
+  const info = document.getElementById("lastInfo");
+  if (info) {
+    info.textContent = `${e.ts} · ${e.src} → ${e.dst}:${e.dst_port} · ${e.result.label_zh}` +
+      (e.incident_title ? ` · 事件：${e.incident_title}` : "");
   }
+}
+
+async function startStream() {
+  try {
+    const res = await fetch("/api/stream/start", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rate: state.streamRate }),
+    });
+    const d = await res.json();
+    setLiveUI(true, "接收中");
+    updateStreamInfo(d.status);
+    connectStream();
+  } catch (err) {
+    setLiveUI(false, "启动失败");
+  }
+}
+
+async function stopStream() {
+  try { await fetch("/api/stream/stop", { method: "POST" }); } catch (_) { /* 忽略 */ }
+  if (state.es) { state.es.close(); state.es = null; }
+  setLiveUI(false, "已暂停");
+}
+
+function toggleLive() {
+  if (state.live) stopStream(); else startStream();
 }
 
 function resetAll() {
@@ -375,6 +450,12 @@ async function loadMetrics() {
       document.getElementById("statAcc").textContent = (m.accuracy * 100).toFixed(2) + "%";
     }
   } catch (_) { document.getElementById("statAcc").textContent = "—"; }
+
+  try {
+    const st = await (await fetch("/api/alerts/stats")).json();
+    const el = document.getElementById("statIncidents");
+    if (el) el.textContent = st.incidents || 0;
+  } catch (_) { /* 忽略 */ }
 }
 
 function renderCM(cm) {
@@ -561,6 +642,179 @@ async function exportHistory() {
   URL.revokeObjectURL(a.href);
 }
 
+/* ================= 攻击事件（关联） ================= */
+const STAGE_ALL = ["recon", "access", "impact", "exfiltration"];
+const STAGE_ZH = { recon: "侦察", access: "初始访问", impact: "影响", exfiltration: "外泄" };
+const STATUS_ZH = { open: "待处理", investigating: "处理中", closed: "已关闭" };
+
+function chainHtml(stages) {
+  const on = new Set((stages || []).map(s => s.key));
+  return `<div class="chain">` + STAGE_ALL.map((k, i) =>
+    `${i ? '<span class="chain-arrow">›</span>' : ""}<span class="chain-step ${on.has(k) ? "on" : ""}">${STAGE_ZH[k]}</span>`
+  ).join("") + `</div>`;
+}
+
+function scoreColor(score) {
+  if (score >= 85) return "#f85149";
+  if (score >= 65) return "#f0883e";
+  if (score >= 45) return "#d29922";
+  return "#3fb950";
+}
+
+async function loadIncidents() {
+  const url = "/api/incidents?limit=60" + (state.incFilter ? `&status=${state.incFilter}` : "");
+  try {
+    const [res, sres] = await Promise.all([fetch(url), fetch("/api/alerts/stats")]);
+    const d = await res.json();
+    const st = await sres.json();
+    state.incidents = d.items || [];
+    renderIncidents(d);
+    document.getElementById("incAlerts").textContent = st.total || 0;
+    document.getElementById("incCount").textContent = (st.incidents || 0);
+    document.getElementById("incRatio").textContent =
+      st.compression_ratio ? st.compression_ratio.toFixed(1) + " : 1" : "—";
+    document.getElementById("incMulti").textContent =
+      state.incidents.filter(i => (i.stages || []).length >= 2).length;
+    document.getElementById("incNote").textContent =
+      (st.correlation && st.correlation.text ? st.correlation.text + "。" : "") +
+      "关联规则：同一攻击源 10 分钟内的告警归并为一个事件；风险分 = 严重度基数 + 阶段跨度奖励 + 告警量奖励。";
+  } catch (err) {
+    document.getElementById("incBody").innerHTML =
+      `<tr><td colspan="10" class="muted">加载失败：${err.message}</td></tr>`;
+  }
+}
+
+function renderIncidents(d) {
+  const body = document.getElementById("incBody");
+  if (!state.incidents.length) {
+    body.innerHTML = '<tr><td colspan="10" class="muted">暂无事件（等待实时流产生告警…）</td></tr>';
+    return;
+  }
+  body.innerHTML = state.incidents.map(it => {
+    const c = scoreColor(it.score);
+    const attck = (it.attck || []).map(a => `<span class="attck-tag">${a}</span>`).join(" ");
+    return `<tr data-id="${it.id}">
+      <td>${it.id}</td>
+      <td>${it.title || it.src}</td>
+      <td>${it.src}</td>
+      <td>${chainHtml(it.stages)}</td>
+      <td><span class="badge ${it.severity}">${(it.severity || "").toUpperCase()}</span></td>
+      <td><div class="score-wrap"><div class="score-track"><div class="score-fill" style="width:${it.score}%;background:${c}"></div></div><span>${it.score}</span></div></td>
+      <td>${it.alert_count}</td>
+      <td>${attck || '<span class="muted">—</span>'}</td>
+      <td><span class="status-pill ${it.status}">${STATUS_ZH[it.status] || it.status}</span></td>
+      <td>${it.last_seen || ""}</td>
+    </tr>`;
+  }).join("");
+  body.querySelectorAll("tr").forEach(tr => {
+    tr.addEventListener("click", () => openIncident(Number(tr.dataset.id)));
+  });
+}
+
+async function openIncident(id) {
+  const panel = document.getElementById("incidentPanel");
+  const body = document.getElementById("incidentBody");
+  body.innerHTML = '<div class="muted">加载中…</div>';
+  panel.classList.add("open");
+  try {
+    const d = await (await fetch(`/api/incidents/${id}`)).json();
+    if (d.error) { body.innerHTML = `<div class="muted">${d.error}</div>`; return; }
+    const c = scoreColor(d.score);
+    let html = `
+      <div class="kv"><span>事件</span><b>${d.title}</b></div>
+      <div class="kv"><span>攻击源</span><b>${d.src}</b></div>
+      <div class="kv"><span>风险分</span><span style="color:${c};font-weight:600">${d.score} / 100</span></div>
+      <div class="kv"><span>级别</span><span class="badge ${d.severity}">${(d.severity || "").toUpperCase()}</span></div>
+      <div class="kv"><span>告警数</span><span>${d.alert_count}</span></div>
+      <div class="kv"><span>首次 / 最近</span><span>${d.first_seen} → ${d.last_seen}</span></div>
+      <div class="kv"><span>ATT&amp;CK</span><span>${(d.attck || []).map(a => `<span class="attck-tag">${a}</span>`).join(" ") || "—"}</span></div>
+      <div style="margin:14px 0">
+        <div class="muted" style="margin-bottom:6px">攻击链进度</div>
+        ${chainHtml(d.stages)}
+      </div>
+      <div style="margin:14px 0">
+        <div class="muted" style="margin-bottom:6px">目标主机</div>
+        ${(d.dsts || []).map(x => `<span class="rule-tag">${x}</span>`).join("") || "—"}
+      </div>
+      <div class="muted" style="margin:14px 0 6px">处置状态</div>
+      <div style="display:flex;gap:6px">
+        ${Object.keys(STATUS_ZH).map(s =>
+          `<button class="btn-mini ${d.status === s ? "active" : ""}" data-status="${s}">${STATUS_ZH[s]}</button>`).join("")}
+      </div>
+      <div class="muted" style="margin:18px 0 8px">原始告警（最近 ${Math.min(d.alerts.length, 30)} 条，共 ${d.alerts.length} 条）</div>
+      <div style="font-size:11px;line-height:1.9">`;
+    d.alerts.slice(0, 30).forEach(a => {
+      html += `<div style="border-bottom:1px dashed var(--border);padding:3px 0">
+        <span class="muted">${a.ts}</span> · ${a.dst}:${a.dst_port} ·
+        <b>${a.label_zh || a.label}</b> · <span class="muted">${a.basis}</span></div>`;
+    });
+    html += `</div>`;
+    body.innerHTML = html;
+    body.querySelectorAll("button[data-status]").forEach(btn => {
+      btn.addEventListener("click", () => setIncidentStatus(d.id, btn.dataset.status));
+    });
+  } catch (err) {
+    body.innerHTML = `<div class="muted">加载失败：${err.message}</div>`;
+  }
+}
+
+async function setIncidentStatus(id, status) {
+  try {
+    await fetch(`/api/incidents/${id}/status`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    openIncident(id);
+    loadIncidents();
+  } catch (_) { /* 忽略 */ }
+}
+
+/* ================= 规则库 ================= */
+async function loadRules() {
+  try {
+    const d = await (await fetch("/api/rules")).json();
+    const rules = d.rules || [];
+    const st = d.stats || {};
+    document.getElementById("ruleCount").textContent =
+      `共 ${st.total || 0} 条 · 启用 ${st.enabled || 0} 条`;
+    document.getElementById("ruleNote").textContent = d.note || "";
+    const errs = st.errors || [];
+    document.getElementById("ruleErrors").innerHTML = errs.length
+      ? `<div class="rule-err">${errs.length} 处规则文件问题：` +
+        errs.map(e => `${e.file} — ${e.error}`).join("；") + `</div>`
+      : "";
+    document.getElementById("ruleBody").innerHTML = rules.map(r => `
+      <tr>
+        <td style="font-family:Consolas,monospace">${r.id}</td>
+        <td>${r.name}</td>
+        <td>${LABEL_ZH[r.attack] || r.attack}</td>
+        <td><span class="badge ${r.severity}">${r.severity.toUpperCase()}</span></td>
+        <td>${r.attck ? `<span class="attck-tag">${r.attck}</span><div class="muted">${r.attck_name || ""}</div>` : "—"}</td>
+        <td class="rule-expr">${r.expression}</td>
+        <td>${r.hit_count || 0}</td>
+        <td class="muted">${r.source}</td>
+      </tr>`).join("");
+  } catch (err) {
+    document.getElementById("ruleBody").innerHTML =
+      `<tr><td colspan="8" class="muted">加载失败：${err.message}</td></tr>`;
+  }
+}
+
+async function reloadRules() {
+  const btn = document.getElementById("btnRuleReload");
+  btn.textContent = "重载中…";
+  try {
+    const d = await (await fetch("/api/rules/reload", { method: "POST" })).json();
+    document.getElementById("ruleCount").textContent =
+      `共 ${d.stats.total} 条 · 启用 ${d.stats.enabled} 条`;
+    loadRules();
+    btn.textContent = "已重载";
+    setTimeout(() => { btn.textContent = "重载规则"; }, 1200);
+  } catch (err) {
+    btn.textContent = "重载失败";
+  }
+}
+
 function initTabs() {
   document.querySelectorAll(".tab").forEach(tab => {
     tab.addEventListener("click", () => {
@@ -568,8 +822,15 @@ function initTabs() {
       document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
       tab.classList.add("active");
       document.getElementById("tab-" + tab.dataset.tab).classList.add("active");
-      if (tab.dataset.tab === "analysis") loadAnalysis();
-      if (tab.dataset.tab === "history") loadHistory();
+      if (state.incTimer) { clearInterval(state.incTimer); state.incTimer = null; }
+      const name = tab.dataset.tab;
+      if (name === "incidents") {
+        loadIncidents();
+        state.incTimer = setInterval(loadIncidents, 4000);   // 只在事件页开着时刷新
+      }
+      if (name === "rules") loadRules();
+      if (name === "analysis") loadAnalysis();
+      if (name === "history") loadHistory();
     });
   });
 }
@@ -579,11 +840,30 @@ document.addEventListener("DOMContentLoaded", () => {
   renderScenarioBtns();
   initTabs();
   loadMetrics();
-  fetchBatch();
-  state.timer = setInterval(fetchBatch, 2500);
+  startStream();                                   // 服务端持续推送，不再前端轮询
+  setInterval(flushTrend, 2000);
+  setInterval(loadMetrics, 10000);                 // 事件计数定期对齐服务端
 
   document.getElementById("btnLive").addEventListener("click", toggleLive);
   document.getElementById("btnStep").addEventListener("click", fetchBatch);
+  document.getElementById("streamRate").addEventListener("change", async (e) => {
+    state.streamRate = Number(e.target.value);
+    if (state.live) await startStream();            // 改流速后重连，立即生效
+  });
+  document.getElementById("btnRuleReload").addEventListener("click", reloadRules);
+  document.getElementById("btnIncRefresh").addEventListener("click", loadIncidents);
+  document.querySelectorAll("#tab-incidents .filters button[data-status]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#tab-incidents .filters button[data-status]")
+        .forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      state.incFilter = btn.dataset.status;
+      loadIncidents();
+    });
+  });
+  document.getElementById("closeIncident").addEventListener("click", () => {
+    document.getElementById("incidentPanel").classList.remove("open");
+  });
   document.getElementById("btnReset").addEventListener("click", resetAll);
   document.getElementById("btnExport").addEventListener("click", exportCsv);
   document.getElementById("btnPcap").addEventListener("click", () => document.getElementById("pcapFile").click());

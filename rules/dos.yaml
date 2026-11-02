@@ -1,0 +1,92 @@
+version: 1
+# 拒绝服务类规则
+# 判据核心：包量极大 + 时长极短 + 对端几乎无响应
+rules:
+  - id: DOS-001
+    name: SYN洪泛特征
+    enabled: true
+    attack: dos
+    severity: critical
+    confidence: 0.95
+    attck: T1498.001
+    attck_name: Direct Network Flood
+    description: 连接内 SYN 占比超过 80% 且包量巨大，符合 SYN Flood 的半开连接堆积特征
+    tags: [flood, tcp, syn]
+    window: 1s
+    condition:
+      all:
+        - field: syn_rate
+          op: gte
+          value: 0.8
+        - field: packet_count
+          op: gte
+          value: 400
+
+  - id: DOS-002
+    name: 小包洪泛
+    enabled: true
+    attack: dos
+    severity: high
+    confidence: 0.85
+    attck: T1498.001
+    attck_name: Direct Network Flood
+    description: 短时内海量小包（平均包长 < 100B），典型 UDP/ICMP 洪泛或空载荷 SYN
+    tags: [flood, small-packet]
+    window: 1s
+    condition:
+      all:
+        - field: packet_count
+          op: gte
+          value: 800
+        - field: bytes_per_packet
+          op: lte
+          value: 100
+        - field: duration
+          op: lte
+          value: 8
+
+  - id: DOS-003
+    name: 响应缺失型洪泛
+    enabled: true
+    attack: dos
+    severity: high
+    confidence: 0.9
+    attck: T1498.001
+    attck_name: Direct Network Flood
+    description: 发送量巨大但对端回包不足 5KB，说明目标未能正常响应，符合打瘫特征
+    tags: [flood, unidirectional]
+    window: 1s
+    condition:
+      all:
+        - field: packet_count
+          op: gte
+          value: 500
+        - field: dst_bytes
+          op: lte
+          value: 5000
+        - field: src_bytes
+          op: gte
+          value: 10000
+        - field: duration
+          op: lte
+          value: 8
+
+  - id: DOS-004
+    name: 高包速率连接
+    enabled: true
+    attack: dos
+    severity: medium
+    confidence: 0.8
+    attck: T1498.001
+    attck_name: Direct Network Flood
+    description: 3 秒内完成上千个包，包速率远超正常业务连接（正常连接 < 200 包）
+    tags: [rate]
+    window: 1s
+    condition:
+      all:
+        - field: packet_count
+          op: gte
+          value: 1000
+        - field: duration
+          op: lte
+          value: 3

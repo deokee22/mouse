@@ -31,15 +31,19 @@ Flask 后端 API（安全运营控制台版）
 import os
 import json
 import time
+import queue
 import random
 
 import logging
 import numpy as np
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, Response
 
 from traffic_generator import FEATURES, LABELS, GENERATORS, simulate_live_event
 from detector import FusionPolicy, LABEL_ZH
 from pcap_parser import parse_pcap
+from event_factory import make_event
+from stream_engine import StreamEngine
+import correlation
 import storage
 import config
 
@@ -72,12 +76,9 @@ def _server_error(e):
 
 fusion = FusionPolicy()
 storage.init()
+correlation.WINDOW_SECONDS = config.CORRELATION_WINDOW
 _rng = np.random.default_rng()
-
-SRC_POOL = ["10.0.0.11", "10.0.0.23", "172.16.8.4", "192.168.1.105",
-            "203.0.113.9", "198.51.100.77", "10.0.1.52", "45.33.32.156"]
-DST_POOL = ["10.0.0.1", "10.0.0.2", "10.0.0.5", "10.0.0.8", "10.0.0.13"]
-DST_PORTS = [21, 22, 53, 80, 443, 3306, 3389, 8080]
+stream = StreamEngine(fusion, rate=config.STREAM_RATE)
 
 SCENARIOS = {
     "ssh": {"label": "SSH 暴力破解", "attack": "brute_force"},
@@ -89,17 +90,13 @@ SCENARIOS = {
 INTENSITY = {"low": 0.3, "medium": 0.6, "high": 0.9}
 
 
-def make_event(idx, feats, true_label, now):
-    result = fusion.detect(feats, true_label=true_label)
-    return {
-        "id": int(now * 1000) + idx,
-        "ts": time.strftime("%H:%M:%S", time.localtime(now + idx * 0.3)),
-        "src": random.choice(SRC_POOL),
-        "dst": random.choice(DST_POOL),
-        "dst_port": random.choice(DST_PORTS),
-        "result": result,
-        "features": {k: round(float(v), 3) for k, v in feats.items()},
-    }
+def _ingest(events):
+    """写入告警并做关联聚合，返回 (写入条数, 受影响事件数)。"""
+    rows = storage.insert_events_with_ids(events)
+    if not rows:
+        return 0, 0
+    touched = correlation.process(rows)
+    return len(rows), len({t["id"] for t in touched})
 
 
 @app.route("/")
@@ -119,9 +116,10 @@ def api_simulate():
     now = time.time()
     for i in range(n):
         feats, true_label = simulate_live_event(_rng)
-        events.append(make_event(i, feats, true_label, now))
-    storage.insert_events(events)
-    return jsonify({"events": events, "sensitivity": fusion.sensitivity})
+        events.append(make_event(fusion, feats, true_label, now, idx=i))
+    written, incidents = _ingest(events)
+    return jsonify({"events": events, "sensitivity": fusion.sensitivity,
+                    "written": written, "incidents": incidents})
 
 
 @app.route("/api/scenario")
@@ -143,9 +141,10 @@ def api_scenario():
             vec = GENERATORS[label](_rng)
             feats = dict(zip(FEATURES, vec))
             true_label = label
-        events.append(make_event(i, feats, true_label, now))
-    storage.insert_events(events)
-    return jsonify({"events": events, "scenario": stype, "intensity": intensity})
+        events.append(make_event(fusion, feats, true_label, now, idx=i))
+    written, incidents = _ingest(events)
+    return jsonify({"events": events, "scenario": stype, "intensity": intensity,
+                    "written": written, "incidents": incidents})
 
 
 @app.route("/api/detect", methods=["POST"])
@@ -157,8 +156,9 @@ def api_detect():
         return jsonify({"error": f"缺少特征: {missing}", "required": FEATURES}), 400
     feats = {k: float(feats[k]) for k in FEATURES}
     result = fusion.detect(feats)
-    storage.insert_events([{
+    _ingest([{
         "ts": time.strftime("%H:%M:%S"),
+        "epoch": time.time(),
         "src": body.get("src", "api"), "dst": body.get("dst", "api"),
         "dst_port": int(body.get("dst_port", 0) or 0),
         "result": result,
@@ -281,14 +281,22 @@ def api_scenarios():
 
 @app.route("/api/rules")
 def api_rules():
-    desc = [
-        {"name": "SYN洪泛特征", "condition": "syn_rate > 0.8×k 且 packet_count > 400×k", "category": "DoS"},
-        {"name": "小包洪泛", "condition": "packet_count > 800×k 且 bytes_per_packet < 100/k", "category": "DoS"},
-        {"name": "端口离散度异常", "condition": "num_unique_ports > 15×k", "category": "端口扫描"},
-        {"name": "高频失败登录", "condition": "failed_logins >= 8×k", "category": "暴力破解"},
-        {"name": "上行流量失衡", "condition": "src_bytes > 500KB×k 且 src_bytes > 20k×dst_bytes", "category": "数据外泄"},
-    ]
-    return jsonify({"rules": desc, "note": "k 随灵敏度变化：灵敏度越高 k 越小，阈值越宽松"})
+    """规则库：来自 rules/*.yaml（DSL），不再是硬编码。"""
+    rs = fusion.rules.rule_set
+    return jsonify({
+        "rules": [r.to_dict() for r in rs.rules],
+        "stats": rs.stats(),
+        "note": "k 随灵敏度变化：k = 1.25 - 0.5×灵敏度；"
+                "增大类阈值×k、减小类阈值÷k，所以灵敏度越高越容易命中",
+    })
+
+
+@app.route("/api/rules/reload", methods=["POST"])
+def api_rules_reload():
+    """热重载规则文件，无需重启服务。"""
+    rs = fusion.rules.rule_set
+    rs.reload()
+    return jsonify({"reloaded": True, "stats": rs.stats()})
 
 
 @app.route("/api/features")
@@ -307,13 +315,91 @@ def api_alerts():
 
 @app.route("/api/alerts/stats")
 def api_alerts_stats():
-    return jsonify(storage.stats())
+    st = storage.stats()
+    st["correlation"] = correlation.summary()
+    return jsonify(st)
 
 
 @app.route("/api/alerts/clear", methods=["POST"])
 def api_alerts_clear():
     storage.clear()
     return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------- 攻击事件（关联）
+@app.route("/api/incidents")
+def api_incidents():
+    limit = min(int(request.args.get("limit", 50)), 200)
+    offset = int(request.args.get("offset", 0))
+    status = request.args.get("status") or None
+    data = storage.query_incidents(limit, offset, status)
+    data["summary"] = correlation.summary()
+    return jsonify(data)
+
+
+@app.route("/api/incidents/<int:inc_id>")
+def api_incident_detail(inc_id):
+    inc = storage.incident_detail(inc_id)
+    if not inc:
+        return jsonify({"error": "事件不存在"}), 404
+    return jsonify(inc)
+
+
+@app.route("/api/incidents/<int:inc_id>/status", methods=["POST"])
+def api_incident_status(inc_id):
+    body = request.get_json(force=True, silent=True) or {}
+    status = body.get("status", "")
+    try:
+        storage.update_incident_status(inc_id, status)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify({"ok": True, "id": inc_id, "status": status})
+
+
+# ---------------------------------------------------------------- 实时流（SSE）
+@app.route("/api/stream/status")
+def api_stream_status():
+    return jsonify(stream.status())
+
+
+@app.route("/api/stream/start", methods=["POST"])
+def api_stream_start():
+    body = request.get_json(force=True, silent=True) or {}
+    rate = body.get("rate")
+    started = stream.start(rate)
+    return jsonify({"ok": True, "started": started, "status": stream.status()})
+
+
+@app.route("/api/stream/stop", methods=["POST"])
+def api_stream_stop():
+    stream.stop()
+    return jsonify({"ok": True, "status": stream.status()})
+
+
+@app.route("/api/stream")
+def api_stream():
+    """SSE：服务端持续推送检测事件，前端用 EventSource 接收。"""
+    q = stream.subscribe()
+
+    def generate():
+        try:
+            yield "retry: 3000\n\n"
+            yield "data: %s\n\n" % json.dumps({"type": "hello", "stats": stream.status()},
+                                              ensure_ascii=False)
+            while True:
+                try:
+                    item = q.get(timeout=15)
+                except queue.Empty:
+                    yield ": keepalive\n\n"     # 心跳，防止代理断连
+                    continue
+                yield "data: %s\n\n" % json.dumps(item, ensure_ascii=False)
+        finally:
+            stream.unsubscribe(q)
+
+    return Response(generate(), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache",
+                             "Connection": "keep-alive",
+                             "X-Accel-Buffering": "no"})
 
 
 @app.route("/api/health")
@@ -323,6 +409,9 @@ def api_health():
         "sensitivity": fusion.sensitivity,
         "model_loaded": fusion.ml.rf is not None,
         "db": config.DB_PATH,
+        "rules": len(fusion.rules.rules),
+        "rule_errors": len(fusion.rules.rule_set.errors),
+        "stream": stream.status(include_subs=False),
     })
 
 
@@ -404,20 +493,22 @@ def api_pcap():
         events.append({
             "id": int(now * 1000) + i,
             "ts": "PCAP",
+            "epoch": now + i * 0.01,
             "src": c["src"],
             "dst": c["dst"],
             "dst_port": c["dport"],
             "result": result,
             "features": c["features"],
         })
-    storage.insert_events(events)
+    written, incidents = _ingest(events)
     attack = sum(1 for e in events if e["result"]["is_attack"])
     by_label = {}
     for e in events:
         k = e["result"]["label"]
         by_label[k] = by_label.get(k, 0) + 1
     return jsonify({
-        "summary": {"total": len(events), "attack": attack, "by_label": by_label},
+        "summary": {"total": len(events), "attack": attack, "by_label": by_label,
+                    "incidents": incidents},
         "events": events,
     })
 
@@ -432,5 +523,24 @@ def api_report():
 
 
 if __name__ == "__main__":
+    import socket
+    import sys
+
+    # 单实例检查：端口被占时直接退出。
+    # 否则会出现"第二个实例照常跑实时流、但绑不上端口"的情况，
+    # 两条流同时往一个库里写，告警数量会翻倍且难以排查。
+    _probe = socket.socket()
+    try:
+        _probe.bind((config.HOST, config.PORT))
+    except OSError:
+        logger.error("端口 %d 已被占用：可能已有一个 NIDS 实例在运行。"
+                     "请先关闭旧窗口/进程再启动。", config.PORT)
+        sys.exit(1)
+    finally:
+        _probe.close()
+
     logger.info("NIDS 服务已启动: http://%s:%d", config.HOST, config.PORT)
-    app.run(host=config.HOST, port=config.PORT, debug=False)
+    stream.start()
+    logger.info("实时流已启动：%.1f 事件/秒，告警关联窗口 %d 秒",
+                stream.rate, config.CORRELATION_WINDOW)
+    app.run(host=config.HOST, port=config.PORT, debug=False, threaded=True)

@@ -26,7 +26,7 @@
   main{padding:16px 22px;max-width:1400px;margin:0 auto}
   .tab-panel{display:none}
   .tab-panel.active{display:block}
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:12px}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px}
   .stat .label{color:var(--muted);font-size:11px}
   .stat .num{font-size:26px;font-weight:600;margin-top:4px}
@@ -87,6 +87,34 @@
   .cm-rowlabel{color:var(--muted);font-size:10px;padding:4px 8px;text-align:right;white-space:nowrap}
   #closeExplain{background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1}
   .pager{display:flex;gap:12px;align-items:center;padding:12px 14px;justify-content:flex-end}
+  /* ---- 实时流 ---- */
+  .stream-rate{display:flex;align-items:center;gap:6px}
+  .live-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(63,185,80,.14);color:var(--info);font-size:11px}
+  .live-badge.paused{background:rgba(139,152,165,.14);color:var(--muted)}
+  .pulse{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
+  /* ---- 攻击事件 ---- */
+  .inc-summary{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .inc-summary .big{font-size:22px;font-weight:600}
+  .inc-summary .big.crit{color:var(--critical)}
+  .chain{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+  .chain-step{padding:2px 9px;border-radius:999px;font-size:11px;background:var(--panel2);color:var(--muted);border:1px solid var(--border)}
+  .chain-step.on{background:rgba(248,81,73,.16);color:var(--critical);border-color:rgba(248,81,73,.4)}
+  .chain-arrow{color:var(--border);font-size:11px}
+  .score-wrap{display:flex;align-items:center;gap:8px;min-width:110px}
+  .score-track{flex:1;height:6px;background:var(--panel2);border-radius:3px;overflow:hidden}
+  .score-fill{height:100%;border-radius:3px}
+  .status-pill{padding:1px 9px;border-radius:999px;font-size:11px}
+  .status-pill.open{background:rgba(248,81,73,.16);color:var(--critical)}
+  .status-pill.investigating{background:rgba(210,153,34,.16);color:var(--medium)}
+  .status-pill.closed{background:rgba(139,152,165,.16);color:var(--muted)}
+  .attck-tag{display:inline-block;background:rgba(76,141,255,.14);color:#9cc3ff;padding:1px 8px;border-radius:6px;font-size:11px;font-family:Consolas,monospace}
+  /* ---- 规则库 ---- */
+  .rule-expr{font-family:Consolas,monospace;font-size:11px;color:#9cc3ff;white-space:normal}
+  .rule-err{background:rgba(248,81,73,.12);border:1px solid rgba(248,81,73,.35);color:var(--critical);padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:12px}
+  .btn-mini{background:transparent;border:1px solid var(--border);color:var(--text);padding:3px 10px;border-radius:6px;cursor:pointer;font-size:11px}
+  .btn-mini:hover{border-color:var(--accent)}
+  .btn-mini.active{background:rgba(76,141,255,.16);border-color:var(--accent);color:#9cc3ff}
 </style>
 </head>
 <body>
@@ -97,6 +125,8 @@
   </div>
   <nav class="tabs">
     <button class="tab active" data-tab="monitor">监控台</button>
+    <button class="tab" data-tab="incidents">攻击事件</button>
+    <button class="tab" data-tab="rules">规则库</button>
     <button class="tab" data-tab="analysis">模型分析</button>
     <button class="tab" data-tab="history">告警历史</button>
   </nav>
@@ -107,11 +137,27 @@
   <section class="stats">
     <div class="card stat"><div class="label">已检测连接</div><div class="num" id="statTotal">0</div></div>
     <div class="card stat"><div class="label">攻击警告</div><div class="num crit" id="statAttack">0</div></div>
+    <div class="card stat"><div class="label">攻击事件（聚合后）</div><div class="num" id="statIncidents">0</div></div>
     <div class="card stat"><div class="label">检测准确率（测试集）</div><div class="num" id="statAcc">—</div></div>
     <div class="card stat"><div class="label">当前灵敏度</div><div class="num" id="statSens">50%</div></div>
   </section>
 
   <section class="card control">
+    <div class="ctrl-row">
+      <span class="ctrl-label">实时流</span>
+      <span class="live-badge" id="liveBadge"><span class="pulse"></span><span id="liveBadgeText">接收中</span></span>
+      <span class="stream-rate">
+        <span class="ctrl-label" style="min-width:auto">流速</span>
+        <select id="streamRate">
+          <option value="0.5">0.5 条/秒</option>
+          <option value="1">1 条/秒</option>
+          <option value="2" selected>2 条/秒</option>
+          <option value="5">5 条/秒</option>
+          <option value="10">10 条/秒</option>
+        </select>
+      </span>
+      <span class="muted" id="streamInfo">服务端持续推送（SSE），无需手动刷新</span>
+    </div>
     <div class="ctrl-row">
       <span class="ctrl-label">攻击场景</span>
       <div class="scenario-btns" id="scenarioBtns"></div>
@@ -164,6 +210,60 @@
       <table>
         <thead><tr><th>时间</th><th>源 IP</th><th>目的 IP:端口</th><th>判定</th><th>级别</th><th>置信度</th><th>引擎</th><th>依据</th></tr></thead>
         <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<main id="tab-incidents" class="tab-panel">
+  <section class="card">
+    <div class="inc-summary">
+      <div><div class="muted">告警总数</div><div class="big" id="incAlerts">0</div></div>
+      <div><div class="muted">攻击事件</div><div class="big crit" id="incCount">0</div></div>
+      <div><div class="muted">降噪比</div><div class="big" id="incRatio">—</div></div>
+      <div><div class="muted">多阶段事件</div><div class="big" id="incMulti">0</div></div>
+      <div style="flex:1"></div>
+      <div class="filters">
+        <button class="btn-mini active" data-status="">全部</button>
+        <button class="btn-mini" data-status="open">待处理</button>
+        <button class="btn-mini" data-status="investigating">处理中</button>
+        <button class="btn-mini" data-status="closed">已关闭</button>
+        <button class="btn-mini" id="btnIncRefresh">刷新</button>
+      </div>
+    </div>
+    <p class="muted" id="incNote" style="margin-bottom:10px"></p>
+    <div class="table-scroll" style="max-height:520px">
+      <table>
+        <thead><tr>
+          <th>#</th><th>攻击事件</th><th>攻击源</th><th>攻击链阶段</th>
+          <th>级别</th><th>风险分</th><th>告警数</th><th>ATT&amp;CK</th><th>状态</th><th>最近活动</th>
+        </tr></thead>
+        <tbody id="incBody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<main id="tab-rules" class="tab-panel">
+  <section class="card">
+    <div class="table-head" style="padding:0 0 12px 0;border:none">
+      <div>
+        <h3 style="margin:0 0 4px 0">规则库（YAML DSL · 可热加载）</h3>
+        <p class="muted" id="ruleNote"></p>
+      </div>
+      <div class="filters">
+        <span class="muted" id="ruleCount"></span>
+        <button class="btn-mini" id="btnRuleReload">重载规则</button>
+      </div>
+    </div>
+    <div id="ruleErrors"></div>
+    <div class="table-scroll" style="max-height:560px">
+      <table>
+        <thead><tr>
+          <th>ID</th><th>规则名</th><th>攻击类型</th><th>级别</th>
+          <th>ATT&amp;CK</th><th>条件表达式</th><th>命中</th><th>文件</th>
+        </tr></thead>
+        <tbody id="ruleBody"></tbody>
       </table>
     </div>
   </section>
@@ -235,6 +335,11 @@
 <div id="explainPanel" class="explain-panel">
   <div class="explain-head"><span>告警可解释依据</span><button id="closeExplain">×</button></div>
   <div id="explainBody" class="explain-body"></div>
+</div>
+
+<div id="incidentPanel" class="explain-panel">
+  <div class="explain-head"><span>攻击事件详情</span><button id="closeIncident">×</button></div>
+  <div id="incidentBody" class="explain-body"></div>
 </div>
 
 <script src="dashboard.js"></script>

@@ -1,0 +1,63 @@
+version: 1
+# 暴力破解类规则
+# 判据核心：失败登录次数异常高（正常主机 0~1 次）
+rules:
+  - id: BF-001
+    name: 高频失败登录
+    enabled: true
+    attack: brute_force
+    severity: high
+    confidence: 0.9
+    attck: T1110.001
+    attck_name: Password Guessing
+    description: 单条连接内失败登录次数 ≥ 8，正常业务连接通常为 0~1 次
+    tags: [credential, auth]
+    window: 300s
+    condition:
+      all:
+        - field: failed_logins
+          op: gte
+          value: 8
+
+  - id: BF-002
+    name: 持续暴力破解
+    enabled: true
+    attack: brute_force
+    severity: high
+    confidence: 0.88
+    attck: T1110.001
+    attck_name: Password Guessing
+    description: 失败登录 ≥ 20 次且连接持续 30 秒以上，说明攻击者长时间反复试错
+    tags: [credential, persistent]
+    window: 300s
+    condition:
+      all:
+        - field: failed_logins
+          op: gte
+          value: 20
+        - field: duration
+          op: gte
+          value: 30
+
+  - id: BF-003
+    name: 字典攻击节奏
+    enabled: true
+    attack: brute_force
+    severity: medium
+    confidence: 0.8
+    attck: T1110.001
+    attck_name: Password Guessing
+    description: 失败登录 ≥ 5 次伴随上百个小包，符合自动化字典逐条尝试的节奏特征
+    tags: [credential, dictionary]
+    window: 300s
+    condition:
+      all:
+        - field: failed_logins
+          op: gte
+          value: 5
+        - field: packet_count
+          op: gte
+          value: 100
+        - field: bytes_per_packet
+          op: lte
+          value: 200

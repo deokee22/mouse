@@ -4,3 +4,4 @@ pandas>=2.0
 numpy>=1.26
 joblib>=1.4
 scapy>=2.5
+pyyaml>=6.0
