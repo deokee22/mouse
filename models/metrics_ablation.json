@@ -1,0 +1,467 @@
+{
+  "experiment": "feature_ablation",
+  "dataset": "realistic",
+  "n_total": 5000,
+  "n_train": 3750,
+  "n_test": 1250,
+  "meta": {
+    "n_total": 5000,
+    "ratio": {
+      "normal": 0.7,
+      "dos": 0.12,
+      "port_scan": 0.08,
+      "brute_force": 0.06,
+      "exfiltration": 0.04
+    },
+    "counts": {
+      "normal": 3500,
+      "dos": 600,
+      "port_scan": 400,
+      "brute_force": 300,
+      "exfiltration": 200
+    },
+    "hard_ratio": 0.12,
+    "label_noise": 0.02,
+    "seed": 7,
+    "features": [
+      "duration",
+      "protocol_type",
+      "src_bytes",
+      "dst_bytes",
+      "packet_count",
+      "failed_logins",
+      "num_unique_ports",
+      "syn_rate",
+      "bytes_per_packet"
+    ],
+    "labels": [
+      "normal",
+      "dos",
+      "port_scan",
+      "brute_force",
+      "exfiltration"
+    ]
+  },
+  "split": {
+    "test_size": 0.25,
+    "random_state": 42,
+    "stratify": true
+  },
+  "rf_params": {
+    "n_estimators": 120,
+    "max_depth": 12,
+    "random_state": 42,
+    "n_jobs": -1
+  },
+  "dt_params": {
+    "max_depth": 12,
+    "random_state": 42
+  },
+  "groups": [
+    {
+      "key": "A",
+      "name": "基础流量特征",
+      "name_en": "basic",
+      "features": [
+        "duration",
+        "protocol_type",
+        "src_bytes",
+        "dst_bytes",
+        "packet_count"
+      ],
+      "n_features": 5,
+      "note": "仅需单流统计（时长/协议/双向字节数/包数），采集成本最低",
+      "RandomForest": {
+        "accuracy": 0.9608,
+        "precision_macro": 0.9501,
+        "recall_macro": 0.9066,
+        "f1_macro": 0.9272,
+        "f1_weighted": 0.9602,
+        "per_class_recall": {
+          "normal": 0.9884,
+          "dos": 0.9346,
+          "port_scan": 0.9406,
+          "brute_force": 0.8148,
+          "exfiltration": 0.8545
+        },
+        "latency_ms_per_1k": 34.47,
+        "confusion_matrix": [
+          [
+            850,
+            2,
+            1,
+            4,
+            3
+          ],
+          [
+            8,
+            143,
+            2,
+            0,
+            0
+          ],
+          [
+            1,
+            3,
+            95,
+            1,
+            1
+          ],
+          [
+            15,
+            0,
+            0,
+            66,
+            0
+          ],
+          [
+            8,
+            0,
+            0,
+            0,
+            47
+          ]
+        ]
+      },
+      "DecisionTree": {
+        "accuracy": 0.9376,
+        "precision_macro": 0.892,
+        "recall_macro": 0.886,
+        "f1_macro": 0.8888,
+        "f1_weighted": 0.9375,
+        "per_class_recall": {
+          "normal": 0.9651,
+          "dos": 0.8954,
+          "port_scan": 0.9307,
+          "brute_force": 0.8025,
+          "exfiltration": 0.8364
+        },
+        "latency_ms_per_1k": 0.18,
+        "confusion_matrix": [
+          [
+            830,
+            9,
+            2,
+            14,
+            5
+          ],
+          [
+            10,
+            137,
+            4,
+            2,
+            0
+          ],
+          [
+            2,
+            3,
+            94,
+            1,
+            1
+          ],
+          [
+            12,
+            1,
+            3,
+            65,
+            0
+          ],
+          [
+            8,
+            1,
+            0,
+            0,
+            46
+          ]
+        ]
+      },
+      "feature_importance": {
+        "duration": 0.1735,
+        "protocol_type": 0.0108,
+        "src_bytes": 0.2149,
+        "dst_bytes": 0.3514,
+        "packet_count": 0.2494
+      }
+    },
+    {
+      "key": "B",
+      "name": "基础 + 行为特征",
+      "name_en": "behavior",
+      "features": [
+        "duration",
+        "protocol_type",
+        "src_bytes",
+        "dst_bytes",
+        "packet_count",
+        "failed_logins",
+        "num_unique_ports",
+        "syn_rate"
+      ],
+      "n_features": 8,
+      "note": "增加跨包/跨会话聚合特征（登录失败、端口广度、SYN 占比），刻画攻击行为",
+      "RandomForest": {
+        "accuracy": 0.9704,
+        "precision_macro": 0.9621,
+        "recall_macro": 0.9257,
+        "f1_macro": 0.9431,
+        "f1_weighted": 0.97,
+        "per_class_recall": {
+          "normal": 0.9942,
+          "dos": 0.9281,
+          "port_scan": 0.9505,
+          "brute_force": 0.9012,
+          "exfiltration": 0.8545
+        },
+        "latency_ms_per_1k": 38.12,
+        "confusion_matrix": [
+          [
+            855,
+            1,
+            1,
+            0,
+            3
+          ],
+          [
+            7,
+            142,
+            4,
+            0,
+            0
+          ],
+          [
+            1,
+            2,
+            96,
+            1,
+            1
+          ],
+          [
+            8,
+            0,
+            0,
+            73,
+            0
+          ],
+          [
+            8,
+            0,
+            0,
+            0,
+            47
+          ]
+        ],
+        "delta_vs_A": {
+          "accuracy_pp": 0.96,
+          "f1_macro_pp": 1.59
+        }
+      },
+      "DecisionTree": {
+        "accuracy": 0.9512,
+        "precision_macro": 0.9267,
+        "recall_macro": 0.9013,
+        "f1_macro": 0.9133,
+        "f1_weighted": 0.9507,
+        "per_class_recall": {
+          "normal": 0.9791,
+          "dos": 0.8889,
+          "port_scan": 0.9505,
+          "brute_force": 0.8519,
+          "exfiltration": 0.8364
+        },
+        "latency_ms_per_1k": 0.22,
+        "confusion_matrix": [
+          [
+            842,
+            9,
+            2,
+            4,
+            3
+          ],
+          [
+            9,
+            136,
+            7,
+            1,
+            0
+          ],
+          [
+            1,
+            2,
+            96,
+            1,
+            1
+          ],
+          [
+            11,
+            1,
+            0,
+            69,
+            0
+          ],
+          [
+            8,
+            1,
+            0,
+            0,
+            46
+          ]
+        ],
+        "delta_vs_A": {
+          "accuracy_pp": 1.36,
+          "f1_macro_pp": 2.45
+        }
+      },
+      "feature_importance": {
+        "duration": 0.0967,
+        "protocol_type": 0.0074,
+        "src_bytes": 0.1921,
+        "dst_bytes": 0.2143,
+        "packet_count": 0.1605,
+        "failed_logins": 0.0924,
+        "num_unique_ports": 0.071,
+        "syn_rate": 0.1656
+      }
+    },
+    {
+      "key": "C",
+      "name": "全特征",
+      "name_en": "full",
+      "features": [
+        "duration",
+        "protocol_type",
+        "src_bytes",
+        "dst_bytes",
+        "packet_count",
+        "failed_logins",
+        "num_unique_ports",
+        "syn_rate",
+        "bytes_per_packet"
+      ],
+      "n_features": 9,
+      "note": "再加入派生特征 bytes_per_packet（平均包长）",
+      "RandomForest": {
+        "accuracy": 0.9688,
+        "precision_macro": 0.9573,
+        "recall_macro": 0.9253,
+        "f1_macro": 0.9406,
+        "f1_weighted": 0.9685,
+        "per_class_recall": {
+          "normal": 0.993,
+          "dos": 0.915,
+          "port_scan": 0.9505,
+          "brute_force": 0.9136,
+          "exfiltration": 0.8545
+        },
+        "latency_ms_per_1k": 38.26,
+        "confusion_matrix": [
+          [
+            854,
+            2,
+            1,
+            0,
+            3
+          ],
+          [
+            7,
+            140,
+            6,
+            0,
+            0
+          ],
+          [
+            1,
+            2,
+            96,
+            1,
+            1
+          ],
+          [
+            7,
+            0,
+            0,
+            74,
+            0
+          ],
+          [
+            8,
+            0,
+            0,
+            0,
+            47
+          ]
+        ],
+        "delta_vs_A": {
+          "accuracy_pp": 0.8,
+          "f1_macro_pp": 1.34
+        }
+      },
+      "DecisionTree": {
+        "accuracy": 0.9488,
+        "precision_macro": 0.9178,
+        "recall_macro": 0.8948,
+        "f1_macro": 0.906,
+        "f1_weighted": 0.9484,
+        "per_class_recall": {
+          "normal": 0.9802,
+          "dos": 0.8824,
+          "port_scan": 0.9109,
+          "brute_force": 0.8642,
+          "exfiltration": 0.8364
+        },
+        "latency_ms_per_1k": 0.18,
+        "confusion_matrix": [
+          [
+            843,
+            9,
+            1,
+            3,
+            4
+          ],
+          [
+            9,
+            135,
+            8,
+            1,
+            0
+          ],
+          [
+            2,
+            2,
+            92,
+            4,
+            1
+          ],
+          [
+            10,
+            1,
+            0,
+            70,
+            0
+          ],
+          [
+            8,
+            1,
+            0,
+            0,
+            46
+          ]
+        ],
+        "delta_vs_A": {
+          "accuracy_pp": 1.12,
+          "f1_macro_pp": 1.72
+        }
+      },
+      "feature_importance": {
+        "duration": 0.076,
+        "protocol_type": 0.0042,
+        "src_bytes": 0.1791,
+        "dst_bytes": 0.236,
+        "packet_count": 0.1391,
+        "failed_logins": 0.082,
+        "num_unique_ports": 0.0533,
+        "syn_rate": 0.18,
+        "bytes_per_packet": 0.0504
+      }
+    }
+  ]
+}

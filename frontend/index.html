@@ -180,6 +180,17 @@
     <p class="muted" id="datasetNote" style="margin-top:8px"></p>
   </section>
   <section class="card">
+    <h3>特征消融实验（A 基础流量 / B +行为 / C 全特征）</h3>
+    <div class="chart-box tall"><canvas id="ablationChart"></canvas></div>
+    <div class="table-scroll" style="margin-top:12px">
+      <table>
+        <thead><tr><th>特征组</th><th>维度</th><th>准确率</th><th>Macro-F1</th><th>brute_force 召回</th><th>exfiltration 召回</th><th>推理延迟</th></tr></thead>
+        <tbody id="ablationBody"></tbody>
+      </table>
+    </div>
+    <p class="muted" id="ablationNote" style="margin-top:8px"></p>
+  </section>
+  <section class="card">
     <h3>混淆矩阵（RandomForest 主模型）</h3>
     <div id="cmWrap" class="cm-wrap"></div>
   </section>

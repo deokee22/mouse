@@ -112,13 +112,16 @@ nids-project/
 | GET | `/api/simulate?n=20` | 模拟 n 条流量并逐条检测 |
 | POST | `/api/detect` | 对单条特征记录检测，body: `{"features": {...}}` |
 | GET | `/api/metrics` | 模型评估指标 |
+| GET | `/api/dataset_compare` | 平衡合成 vs 真实分布 两套数据集指标对比 |
+| GET | `/api/ablation` | 特征消融实验（A/B/C 三组特征） |
+| GET | `/api/cicids` | CICIDS2017 二分类基线结果 |
 | GET | `/api/rules` | 规则引擎规则清单 |
 | GET | `/api/features` | 特征定义 |
 
 ---
 
 ## 📌 可扩展方向
-- 接入 NSL-KDD / CICIDS-2017 真实数据集对比实验
+- 用官方 CICIDS2017 全量 CSV 复跑 P1 / P2（当前为构造样本）
 - 增加 LSTM/AutoEncoder 时序模型做对比
 - 告警持久化（SQLite）与历史查询接口
 - PCAP 文件上传解析（Scapy / Zeek）
@@ -181,6 +184,25 @@ nids-project/
 - **接入说明** `docs/CICIDS接入说明.md`：下载、标签映射、数据泄漏注意事项。
 
 > 注意：当前 `data/cicids/sample.csv` 是构造样本，仅验证流程；真实实验请用官方 CSV 替换。
+
+## 🆕 P2：特征消融实验
+
+回答"这 9 维特征到底有没有用"：把特征按采集成本拆成三组，在**同一数据划分、同一组超参**下分别训练，只让特征组这一个变量变化。
+
+| 组 | 特征 | 维度 | 准确率 | Macro-F1 | brute_force 召回 | 推理延迟 |
+|---|---|---|---|---|---|---|
+| A 基础流量 | duration, protocol_type, src_bytes, dst_bytes, packet_count | 5 | 0.9608 | 0.9272 | 0.8148 | 34.5 ms/千条 |
+| **B 基础+行为** | A + failed_logins, num_unique_ports, syn_rate | 8 | **0.9704** | **0.9431** | **0.9012** | 38.1 ms/千条 |
+| C 全特征 | B + bytes_per_packet | 9 | 0.9688 | 0.9406 | 0.9136 | 38.3 ms/千条 |
+
+结论（RandomForest，DecisionTree 趋势一致）：
+
+1. **行为特征贡献显著**：A→B 带来 +1.59pp Macro-F1，其中暴力破解召回从 81.5% 提升到 90.1%（+8.6pp）——`failed_logins` 直接刻画"试错次数"，是基础流量特征给不出的信息。
+2. **派生特征边际贡献为负**：B→C 的 `bytes_per_packet` 反而让 Macro-F1 下降 0.25pp。因为它 = (src_bytes+dst_bytes)/packet_count，信息已被三个原始特征完全覆盖，多一个维度只增加分裂噪声。
+3. **最优组合是 B 组，不是全特征**：这说明"特征越多越好"是错的，消融实验的价值正在于证伪它。
+
+- 脚本：`train_ablation.py` → `models/metrics_ablation.json`
+- 接口：`GET /api/ablation`，控制台"模型分析"页可视化
 
 ## 📄 License
 MIT © 许智雄

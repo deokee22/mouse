@@ -13,6 +13,9 @@ Flask 后端 API（安全运营控制台版）
     GET  /api/sensitivity?value= 读取/设置灵敏度（0~1）
     GET  /api/metrics           模型评估指标
     GET  /api/model_compare     多模型对比 + 特征重要性 + 混淆矩阵
+    GET  /api/dataset_compare   均衡 vs 真实分布 两套数据集的指标对比
+    GET  /api/ablation          特征消融实验（A/B/C 三组特征）
+    GET  /api/cicids            CICIDS2017 二分类基线结果
     GET  /api/feature_importance 特征重要性
     GET  /api/scenarios         可用攻击场景清单
     GET  /api/rules             规则清单
@@ -231,6 +234,39 @@ def api_dataset_compare():
             "confusion_matrix": m.get("confusion_matrix", {}),
         }
     return jsonify(result)
+
+
+@app.route("/api/ablation")
+def api_ablation():
+    """特征消融实验结果（train_ablation.py 产出）。
+
+    返回三组特征（A 基础流量 / B +行为 / C 全特征）在同一划分下的指标，
+    供控制台"模型分析"页做 A/B/C 对比。
+    """
+    path = os.path.join(MODEL_DIR, "metrics_ablation.json")
+    if not os.path.exists(path):
+        return jsonify({"error": "metrics_ablation.json 不存在，请先运行 train_ablation.py"}), 404
+    with open(path, "r", encoding="utf-8") as fp:
+        m = json.load(fp)
+    return jsonify({
+        "dataset": m.get("dataset"),
+        "n_total": m.get("n_total"),
+        "n_train": m.get("n_train"),
+        "n_test": m.get("n_test"),
+        "split": m.get("split", {}),
+        "groups": m.get("groups", []),
+        "labels": LABELS,
+    })
+
+
+@app.route("/api/cicids")
+def api_cicids():
+    """CICIDS2017 二分类基线结果（train_cicids.py 产出）。"""
+    path = os.path.join(MODEL_DIR, "metrics_cicids.json")
+    if not os.path.exists(path):
+        return jsonify({"error": "metrics_cicids.json 不存在，请先运行 train_cicids.py"}), 404
+    with open(path, "r", encoding="utf-8") as fp:
+        return jsonify(json.load(fp))
 
 
 @app.route("/api/feature_importance")

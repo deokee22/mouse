@@ -84,6 +84,14 @@ function initCharts() {
       plugins: { legend: { labels: { boxWidth: 10 } } },
       scales: { x: { ticks, grid: { display: false } }, y: { beginAtZero: true, max: 1, ticks, grid } } },
   });
+
+  charts.ablation = new Chart(document.getElementById("ablationChart"), {
+    type: "bar",
+    data: { labels: [], datasets: [] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { labels: { boxWidth: 10 } } },
+      scales: { x: { ticks, grid: { display: false } }, y: { beginAtZero: true, max: 1, ticks, grid } } },
+  });
 }
 
 function renderScenarioBtns() {
@@ -405,6 +413,53 @@ function renderDatasetCompare(dc) {
     `真实分布数据：正常 ${Math.round((ratio.normal || 0) * 100)}% · 困难样本 ${Math.round((meta.hard_ratio || 0) * 100)}% · 标签噪声 ${Math.round((meta.label_noise || 0) * 100)}% · 共 ${r.n_total || 0} 条。指标下降是"更真实"的代价。`;
 }
 
+function renderAblation(ab) {
+  const groups = ab.groups || [];
+  const body = document.getElementById("ablationBody");
+  if (!groups.length) {
+    body.innerHTML = '<tr><td colspan="7" class="muted">无数据，请先运行 python train_ablation.py</td></tr>';
+    document.getElementById("ablationNote").textContent = "";
+    return;
+  }
+
+  charts.ablation.data.labels = groups.map(g => `${g.key} ${g.name}（${g.n_features}维）`);
+  charts.ablation.data.datasets = [
+    { label: "准确率", data: groups.map(g => g.RandomForest.accuracy), backgroundColor: "#4c8dff", borderRadius: 4 },
+    { label: "Macro-F1", data: groups.map(g => g.RandomForest.f1_macro), backgroundColor: "#f0883e", borderRadius: 4 },
+  ];
+  charts.ablation.update("none");
+
+  const base = groups[0].RandomForest;
+  body.innerHTML = groups.map(g => {
+    const r = g.RandomForest;
+    const dF1 = (r.f1_macro - base.f1_macro) * 100;
+    const delta = g.key === "A" ? '<span class="muted">基线</span>'
+      : `<span style="color:${dF1 >= 0 ? "#3fb950" : "#f85149"}">${dF1 >= 0 ? "+" : ""}${dF1.toFixed(2)}pp</span>`;
+    return `<tr>
+      <td><b>${g.key}</b> ${g.name}</td>
+      <td>${g.n_features}</td>
+      <td>${(r.accuracy * 100).toFixed(2)}%</td>
+      <td>${(r.f1_macro * 100).toFixed(2)}% ${delta}</td>
+      <td>${((r.per_class_recall.brute_force || 0) * 100).toFixed(1)}%</td>
+      <td>${((r.per_class_recall.exfiltration || 0) * 100).toFixed(1)}%</td>
+      <td>${r.latency_ms_per_1k} ms/千条</td>
+    </tr>`;
+  }).join("");
+
+  const b = groups.find(g => g.key === "B"), c = groups.find(g => g.key === "C");
+  let note = `同一数据划分（${ab.n_total} 条，训练/测试 ${ab.n_train}/${ab.n_test}）下只改特征组。`;
+  if (b && c) {
+    const gain = (b.RandomForest.f1_macro - base.f1_macro) * 100;
+    const extra = (c.RandomForest.f1_macro - b.RandomForest.f1_macro) * 100;
+    note += ` 行为特征（failed_logins / num_unique_ports / syn_rate）带来 ${gain >= 0 ? "+" : ""}${gain.toFixed(2)}pp Macro-F1`;
+    note += `，而派生特征 bytes_per_packet 的边际贡献为 ${extra >= 0 ? "+" : ""}${extra.toFixed(2)}pp`;
+    note += extra <= 0
+      ? "——原始特征已包含该信息，多一个维度反而引入噪声，故最优组合是 B 组而非全特征。"
+      : "——派生特征仍有正向作用。";
+  }
+  document.getElementById("ablationNote").textContent = note;
+}
+
 async function loadAnalysis() {
   try {
     const res = await fetch("/api/model_compare");
@@ -432,6 +487,9 @@ async function loadAnalysis() {
 
     const dc = await (await fetch("/api/dataset_compare")).json();
     renderDatasetCompare(dc);
+
+    const abRes = await fetch("/api/ablation");
+    if (abRes.ok) renderAblation(await abRes.json());
   } catch (err) {
     document.getElementById("cmWrap").innerHTML = '<div class="muted">模型对比数据加载失败：' + err.message + "</div>";
   }
